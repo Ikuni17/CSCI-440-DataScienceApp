@@ -18,7 +18,7 @@ class DBManager():
 
     # Returns a list of tuples, where a tuple contains the attributes in the SELECT statement and each row is a tuple
     def perform_query(self, sql_query):
-        return self.cursor.execute(sql_query).fetchall()
+        return self.cursor.execute(sql_query)
 
     # Close the connection cleanly
     def close_connection(self):
