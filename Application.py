@@ -7,19 +7,20 @@ November 15, 2017
 import DB_Manager
 import matplotlib.pyplot as plt
 import numpy as np
-import statistics as stats
+import platform
+import seaborn
 import scipy.stats
 import sklearn.linear_model as lm
-import seaborn
+import statistics as stats
 
 
 # Get the results from the DB for a specific question
 def query_db(db, question_num):
     # Get the correct query for the question
     if question_num == 1:
-        query = 'SELECT * FROM IMDB WHERE Runtime > 1000'
+        pass
     elif question_num == 2:
-        query = 'SELECT Avg_rating, Num_votes FROM RATINGS'
+        query = 'SELECT Avg_rating, Num_votes FROM RATINGS WHERE Num_votes > 20000'
     elif question_num == 3:
         pass
     elif question_num == 4:
@@ -69,10 +70,10 @@ def perform_2(db):
 
     if use_transform:
         plt.xlabel('Log - Number of Votes')
-        plt.savefig('2-Transformed.png')
+        plt.savefig('Results\\2-Transformed.png')
     else:
         plt.xlabel('Number of Votes')
-        plt.savefig('2.png')
+        plt.savefig('Results\\2.png')
     plt.show()
 
 
@@ -92,12 +93,20 @@ def perform_5(db):
 
 
 def main():
-    # Create the DBManager object to open connection
-    brad_path = "C:\\IMDB\\D3 Python Script\\imdb.db"
-    # sam_path = "imdb.db"
-    db = DB_Manager.DBManager(brad_path)
+    # Determine the path to the DB based on who is running this application
+    if platform.system() is 'Windows':
+        # Brad's Path
+        path = "C:\\IMDB\\D3 Python Script\\imdb.db"
+    else:
+        # Sam's Path
+        path = "imdb.db"
+
+    # Create a database manager based on the path
+    db = DB_Manager.DBManager(path)
 
     perform_2(db)
+
+    # Close the database connection cleanly
     db.close_connection()
 
 
