@@ -7,11 +7,15 @@ November 15, 2017
 import DB_Manager
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import platform
 import seaborn
 import scipy.stats
 import sklearn.linear_model as lm
 import statistics as stats
+import statsmodels
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
 
 
 # Get the results from the DB for a specific question
@@ -31,6 +35,25 @@ def query_db(db, question_num):
     return db.perform_query(query)
 
 
+def diagnostic_plots(vector):
+    reg = smf.ols('f0 ~ f1', data=vector).fit()
+    qq_plot = sm.qqplot(reg.resid, line='r')
+    qq_plot.savefig('qq.png')
+
+    stdres = pd.DataFrame(reg.resid_pearson)
+    plt.plot(stdres, 'o', ls='None')
+    l = plt.axhline(y=0, color='r')
+    plt.ylabel('Standardized Residual')
+    plt.xlabel('Observation Number')
+    #plt.legend()
+    #plt.show()
+
+    leverage_plot = sm.graphics.influence_plot(reg, size=15)
+    leverage_plot.savefig('leverage.png')
+
+    exog = sm.graphics.plot_regress_exog(reg)
+    exog.savefig('exog.png')
+
 # Perform analysis specific to question 1: Mean Revenue by Genre
 def perform_1(db):
     pass
@@ -42,13 +65,14 @@ def perform_2(db):
     result = query_db(db, 2)
     # Convert to numpy array
     temp_vector = np.fromiter(result.fetchall(), 'f,i4')
+    diagnostic_plots(temp_vector)
     # Split into two vectors
     rating = temp_vector['f0']
     num_votes = temp_vector['f1']
     # Log Transform number of votes to linearize the relationship
     log_num_votes = np.log(num_votes)
 
-    use_transform = True
+    '''use_transform = True
 
     plt.style.use('seaborn')
     plt.figure(figsize=(15.5, 9.5), dpi=100)
@@ -74,7 +98,7 @@ def perform_2(db):
     else:
         plt.xlabel('Number of Votes')
         plt.savefig('Results\\2.png')
-    plt.show()
+    plt.show()'''
 
 
 # Perform analysis specific to question 3: Num Seasons and Show Rating
