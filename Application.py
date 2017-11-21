@@ -22,11 +22,20 @@ import statsmodels.formula.api as smf
 def query_db(db, question_num):
     # Get the correct query for the question
     if question_num == 1:
-        query = 'SELECT K.Tconst, K.Revenue, G.Genre FROM KAGGLE K, Genre G WHERE K.Tconst = G.Tconst AND K.Revenue IS NOT NULL'
+        query = 'SELECT K.Tconst, K.Revenue, G.Genre ' \
+                'FROM KAGGLE K, Genre G ' \
+                'WHERE K.Tconst = G.Tconst ' \
+                'AND K.Revenue IS NOT NULL'
     elif question_num == 2:
-        query = 'SELECT Avg_rating, Num_votes FROM RATINGS WHERE Num_votes > 0'
+        query = 'SELECT Avg_rating, Num_votes ' \
+                'FROM RATINGS ' \
+                'WHERE Num_votes > 0'
     elif question_num == 3:
-        query = 'SELECT E.Season_Num, R.Avg_rating FROM EPISODE E, RATINGS R WHERE E.Econst = R.Tconst AND E.Season_Num IS NOT NULL AND R.Avg_rating IS NOT NULL'
+        query = 'SELECT E.Season_Num, R.Avg_rating ' \
+                'FROM EPISODE E, RATINGS R ' \
+                'WHERE E.Econst = R.Tconst ' \
+                'AND E.Season_Num IS NOT NULL ' \
+                'AND R.Avg_rating IS NOT NULL'
     elif question_num == 4:
         pass
     elif question_num == 5:
@@ -78,11 +87,10 @@ def perform_1(db):
         else:
             genre_dict[genres] = [v[0][0]]
 
-    #print(genre_dict)
-    #print(result_dict)
+            # print(genre_dict)
+            # print(result_dict)
 
-    #print(scipy.stats.f_oneway(genre_dict))
-
+            # print(scipy.stats.f_oneway(genre_dict))
 
 
 # Perform analysis specific to question 2: Linear Regression Num Votes and Rating
