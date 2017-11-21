@@ -155,7 +155,7 @@ def main():
         path = "C:\\IMDB\\D3 Python Script\\imdb.db"
     else:
         # Sam's Path
-        path = "imdb.db"
+        path = "/Users/Samuel/PycharmProjects/CSCI-440-DataScienceApp/imdb.db"
 
     # Create a database manager based on the path
     db = DB_Manager.DBManager(path)
