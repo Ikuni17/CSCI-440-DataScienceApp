@@ -37,7 +37,11 @@ def query_db(db, question_num):
                 'AND E.Season_Num IS NOT NULL ' \
                 'AND R.Avg_rating IS NOT NULL'
     elif question_num == 4:
-        pass
+        query = 'SELECT Primary_title, Start_year, Runtime, Color, Face_number, K.Language, Country, Content_rating, ' \
+                'Budget, FB_likes, Rank, Revenue, Meta_score ' \
+                'FROM IMDB I, KAGGLE K ' \
+                'WHERE I.Tconst = K.Tconst ' \
+                'AND Revenue IS NOT NULL'
     elif question_num == 5:
         pass
 
@@ -148,8 +152,8 @@ def perform_3(db):
 
 # Perform analysis specific to question 4: Predict Revenue
 def perform_4(db):
-    pass
-
+    # 642 rows, not sure if title should be considered
+    result = query_db(db, 4).fetchall()
 
 # Perform analysis specific to question 5: Predict Remake Rating
 def perform_5(db):
@@ -168,7 +172,7 @@ def main():
     # Create a database manager based on the path
     db = DB_Manager.DBManager(path)
 
-    perform_3(db)
+    perform_4(db)
 
     # Close the database connection cleanly
     db.close_connection()
