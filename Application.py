@@ -22,11 +22,11 @@ import statsmodels.formula.api as smf
 def query_db(db, question_num):
     # Get the correct query for the question
     if question_num == 1:
-        pass
+        query = 'SELECT K.Tconst, K.Revenue, G.Genre FROM KAGGLE K, Genre G WHERE K.Tconst = G.Tconst AND K.Revenue IS NOT NULL'
     elif question_num == 2:
-        query = 'SELECT Avg_rating, Num_votes FROM RATINGS WHERE Num_votes > 20000'
+        query = 'SELECT Avg_rating, Num_votes FROM RATINGS WHERE Num_votes > 0'
     elif question_num == 3:
-        pass
+        query = 'SELECT E.Season_Num, R.Avg_rating FROM EPISODE E, RATINGS R WHERE E.Econst = R.Tconst AND E.Season_Num IS NOT NULL AND R.Avg_rating IS NOT NULL'
     elif question_num == 4:
         pass
     elif question_num == 5:
@@ -45,8 +45,8 @@ def diagnostic_plots(vector):
     l = plt.axhline(y=0, color='r')
     plt.ylabel('Standardized Residual')
     plt.xlabel('Observation Number')
-    #plt.legend()
-    #plt.show()
+    # plt.legend()
+    # plt.show()
 
     leverage_plot = sm.graphics.influence_plot(reg, size=15)
     leverage_plot.savefig('leverage.png')
@@ -54,9 +54,35 @@ def diagnostic_plots(vector):
     exog = sm.graphics.plot_regress_exog(reg)
     exog.savefig('exog.png')
 
+
 # Perform analysis specific to question 1: Mean Revenue by Genre
 def perform_1(db):
-    pass
+    result = query_db(db, 1).fetchall()
+    result_dict = {}
+
+    # Denormalize the genres into a dictionary with the structure: {Tconst: [[Revenue], [Genres]]}
+    for row in result:
+        if row[0] in result_dict:
+            if row[2] not in result_dict[row[0]][1]:
+                result_dict[row[0]][1].append(row[2])
+        else:
+            result_dict[row[0]] = [[row[1]], [row[2]]]
+
+    # Create another dictionary with genres as the key and a list of revenues for that genre as the value
+    genre_dict = {}
+    for k, v in result_dict.items():
+        genres = frozenset(v[1])
+
+        if genres in genre_dict:
+            genre_dict[genres].append(v[0][0])
+        else:
+            genre_dict[genres] = [v[0][0]]
+
+    #print(genre_dict)
+    #print(result_dict)
+
+    #print(scipy.stats.f_oneway(genre_dict))
+
 
 
 # Perform analysis specific to question 2: Linear Regression Num Votes and Rating
@@ -103,7 +129,13 @@ def perform_2(db):
 
 # Perform analysis specific to question 3: Num Seasons and Show Rating
 def perform_3(db):
-    pass
+    # 291663 rows
+    result = query_db(db, 3)
+    # Convert to numpy array
+    temp_vector = np.fromiter(result.fetchall(), 'i4,f')
+    # Split into two vectors
+    num_seasons = temp_vector['f0']
+    rating = temp_vector['f1']
 
 
 # Perform analysis specific to question 4: Predict Revenue
@@ -128,7 +160,7 @@ def main():
     # Create a database manager based on the path
     db = DB_Manager.DBManager(path)
 
-    perform_2(db)
+    perform_3(db)
 
     # Close the database connection cleanly
     db.close_connection()
