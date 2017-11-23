@@ -22,28 +22,33 @@ import statsmodels.formula.api as smf
 def query_db(db, question_num):
     # Get the correct query for the question
     if question_num == 1:
-        query = 'SELECT K.Tconst, K.Revenue, G.Genre ' \
+        query = 'SELECT DISTINCT K.Tconst, K.Revenue, G.Genre ' \
                 'FROM KAGGLE K, Genre G ' \
                 'WHERE K.Tconst = G.Tconst ' \
                 'AND K.Revenue IS NOT NULL'
     elif question_num == 2:
-        query = 'SELECT Avg_rating, Num_votes ' \
+        query = 'SELECT DISTINCT Avg_rating, Num_votes ' \
                 'FROM RATINGS ' \
                 'WHERE Num_votes > 0'
     elif question_num == 3:
-        query = 'SELECT E.Season_Num, R.Avg_rating ' \
+        query = 'SELECT DISTINCT E.Season_Num, R.Avg_rating ' \
                 'FROM EPISODE E, RATINGS R ' \
                 'WHERE E.Econst = R.Tconst ' \
                 'AND E.Season_Num IS NOT NULL ' \
                 'AND R.Avg_rating IS NOT NULL'
     elif question_num == 4:
-        query = 'SELECT Primary_title, Start_year, Runtime, Color, Face_number, K.Language, Country, Content_rating, ' \
-                'Budget, FB_likes, Rank, Revenue, Meta_score ' \
+        query = 'SELECT DISTINCT Primary_title, Start_year, Runtime, Color, Face_number, K.Language, Country, ' \
+                'Content_rating, Budget, FB_likes, Rank, Revenue, Meta_score ' \
                 'FROM IMDB I, KAGGLE K ' \
                 'WHERE I.Tconst = K.Tconst ' \
                 'AND Revenue IS NOT NULL'
     elif question_num == 5:
-        pass
+        query = "SELECT DISTINCT K.Revenue, K.Budget, K.Content_rating, R.Avg_rating " \
+                "FROM KAGGLE K, RATINGS R " \
+                "WHERE K.Tconst = R.Tconst " \
+                "AND K.Revenue IS NOT NULL " \
+                "AND K.Budget IS NOT NULL " \
+                "AND K.Content_rating IS NOT NULL"
 
     return db.perform_query(query)
 
@@ -91,10 +96,10 @@ def perform_1(db):
         else:
             genre_dict[genres] = [v[0][0]]
 
-            # print(genre_dict)
-            # print(result_dict)
+    print(genre_dict)
+    # print(result_dict)
 
-            # print(scipy.stats.f_oneway(genre_dict))
+    # f, p = scipy.stats.f_oneway(genre_dict)
 
 
 # Perform analysis specific to question 2: Linear Regression Num Votes and Rating
@@ -155,9 +160,11 @@ def perform_4(db):
     # 642 rows, not sure if title should be considered
     result = query_db(db, 4).fetchall()
 
-# Perform analysis specific to question 5: Predict Remake Rating
+
+# Perform analysis specific to question 5: Predict Revenue
 def perform_5(db):
-    pass
+    result = query_db(db, 5).fetchall()
+    print(len(result))
 
 
 def main():
@@ -172,7 +179,7 @@ def main():
     # Create a database manager based on the path
     db = DB_Manager.DBManager(path)
 
-    perform_4(db)
+    perform_5(db)
 
     # Close the database connection cleanly
     db.close_connection()
