@@ -87,43 +87,48 @@ def perform_1(db):
         else:
             result_dict[row[0]] = [[row[1]], [row[2]]]
 
-    # Create another dictionary with genres as the key and a list of revenues for that genre as the value
+    # Create another dictionary with the structure: {Genres: [Revenue]}
     genre_dict = {}
     for k, v in result_dict.items():
+        # Create a hashable set from the genres
         genres = frozenset(v[1])
 
+        # If the genre is already in the dict, append this movie's revenue
         if genres in genre_dict:
             genre_dict[genres].append(v[0][0])
+        # Otherwise add a new key and the movie's revenue
         else:
             genre_dict[genres] = [v[0][0]]
 
-    # print(genre_dict)
-    # print(result_dict)
-
+    # Create a 2D list of the revenues for One-Way ANOVA
     revenue_lists = []
     for k, v in genre_dict.items():
         revenue_lists.append(v)
 
-    #print(revenue_lists)
-
+    # Run the One-Way ANOVA
     f, p = scipy.stats.f_oneway(*revenue_lists)
     print("F stat: {0}".format(f))
     print("p-value: {0}".format(p))
 
+    # Create two vectors for plotting
     means = []
     genres = []
-    #mean_dict = {}
     for k,v in genre_dict.items():
-        #mean_dict[k] = stats.mean(v)
-        genres.append(k)
+        # Convert the sets to strings to remove printing frozenset({...})
+        temp = list(k)
+        temp.sort()
+        genres.append(','.join(temp))
+        # Calculate the mean for this genre
         means.append(stats.mean(v))
 
-    #print(len(genres))
+    # Create and plot with a bargraph
     plt.style.use('seaborn')
     plt.figure(figsize=(15.5, 9.5), dpi=100)
     plt.bar(genres, means, align='center')
-    plt.xticks(rotation='vertical')
-    #plt.set_xticklabels(genres, rotation='vertical', fontsize=8)
+    #plt.xticks(rotation='vertical')
+    plt.tick_params(labelbottom='off')
+    plt.xlabel("Genres")
+    plt.ylabel("Mean Revenue (Millions USD)")
     plt.show()
 
 
