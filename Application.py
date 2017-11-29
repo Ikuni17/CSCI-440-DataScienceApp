@@ -16,10 +16,6 @@ import statistics as stats
 import statsmodels
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
-from sklearn.decomposition import PCA
-from sklearn.neural_network import MLPRegressor
-from sklearn.model_selection import KFold
-
 
 
 # Get the results from the DB for a specific question
@@ -39,29 +35,13 @@ def query_db(db, question_num):
                 'FROM EPISODE E, RATINGS R ' \
                 'WHERE E.Econst = R.Tconst ' \
                 'AND E.Season_Num IS NOT NULL ' \
-                'AND E.Season_Num < 50 ' \
                 'AND R.Avg_rating IS NOT NULL'
     elif question_num == 4:
-        '''
-        query = 'SELECT DISTINCT Start_year, Runtime, Color, Face_number, K.Language, Country, ' \
+        query = 'SELECT DISTINCT Primary_title, Start_year, Runtime, Color, Face_number, K.Language, Country, ' \
                 'Content_rating, Budget, FB_likes, Rank, Revenue, Meta_score ' \
                 'FROM IMDB I, KAGGLE K ' \
                 'WHERE I.Tconst = K.Tconst ' \
                 'AND Revenue IS NOT NULL'
-        '''
-        query = 'SELECT DISTINCT Revenue, Start_year, Runtime, Face_number, ' \
-                'FB_likes, Rank, Meta_score ' \
-                'FROM IMDB I, KAGGLE K ' \
-                'WHERE I.Tconst = K.Tconst ' \
-                'AND Revenue IS NOT NULL ' \
-                'AND Start_year IS NOT NULL ' \
-                'AND Runtime IS NOT NULL ' \
-                'AND Face_number IS NOT NULL ' \
-                'AND Budget IS NOT NULL ' \
-                'AND FB_likes IS NOT NULL ' \
-                'AND Rank IS NOT NULL ' \
-                'AND Meta_score IS NOT NULL'
-
     elif question_num == 5:
         query = "SELECT DISTINCT K.Revenue, K.Budget, K.Content_rating, R.Avg_rating " \
                 "FROM KAGGLE K, RATINGS R " \
@@ -95,6 +75,7 @@ def diagnostic_plots(vector):
 
 # Perform analysis specific to question 1: Mean Revenue by Genre
 def perform_1(db):
+    # 1589 rows
     result = query_db(db, 1).fetchall()
     result_dict = {}
 
@@ -106,20 +87,49 @@ def perform_1(db):
         else:
             result_dict[row[0]] = [[row[1]], [row[2]]]
 
-    # Create another dictionary with genres as the key and a list of revenues for that genre as the value
+    # Create another dictionary with the structure: {Genres: [Revenue]}
     genre_dict = {}
     for k, v in result_dict.items():
+        # Create a hashable set from the genres
         genres = frozenset(v[1])
 
+        # If the genre is already in the dict, append this movie's revenue
         if genres in genre_dict:
             genre_dict[genres].append(v[0][0])
+        # Otherwise add a new key and the movie's revenue
         else:
             genre_dict[genres] = [v[0][0]]
 
-    print(genre_dict)
-    # print(result_dict)
+    # Create a 2D list of the revenues for One-Way ANOVA
+    revenue_lists = []
+    for k, v in genre_dict.items():
+        revenue_lists.append(v)
 
-    # f, p = scipy.stats.f_oneway(genre_dict)
+    # Run the One-Way ANOVA
+    f, p = scipy.stats.f_oneway(*revenue_lists)
+    print("F stat: {0}".format(f))
+    print("p-value: {0}".format(p))
+
+    # Create two vectors for plotting
+    means = []
+    genres = []
+    for k,v in genre_dict.items():
+        # Convert the sets to strings to remove printing frozenset({...})
+        temp = list(k)
+        temp.sort()
+        genres.append(','.join(temp))
+        # Calculate the mean for this genre
+        means.append(stats.mean(v))
+
+    # Create and plot with a bargraph
+    plt.style.use('seaborn')
+    plt.figure(figsize=(15.5, 9.5), dpi=100)
+    plt.bar(genres, means, align='center')
+    #plt.xticks(rotation='vertical')
+    plt.tick_params(labelbottom='off')
+    plt.xlabel("Genres")
+    plt.ylabel("Mean Revenue (Millions USD)")
+    plt.show()
 
 
 # Perform analysis specific to question 2: Linear Regression Num Votes and Rating
@@ -171,103 +181,16 @@ def perform_3(db):
     # Convert to numpy array
     temp_vector = np.fromiter(result.fetchall(), 'i4,f')
     # Split into two vectors
-
     num_seasons = temp_vector['f0']
     rating = temp_vector['f1']
 
-    '''
-    df = pd.DataFrame(rating)
-    model = lm.LogisticRegression()
-    model.fit(df, num_seasons)
-
-    plt.scatter(rating, num_seasons)
-    plt.plot(rating, model.predict(df), color='r')
-
-    plt.ylabel('Number of Seasons')
-    plt.xlabel('Show Rating')
-    plt.savefig('Results3.png')
-    plt.show()
-
-
-    # check the accuracy on the training set
-    print("Model Score is: {}".format(model.score(df, num_seasons)))
-    
-    '''
-    print(rating)
-    slope, intercept, r, p, std_error = scipy.stats.linregress(rating, num_seasons)
-    plt.scatter(rating, num_seasons, label='Data')
-    plt.plot(rating, intercept + slope * rating, 'r', label="Fit, r={0}".format(r))
-
-    print(
-        "Slope: {0}\nIntercept: {1}\nr: {2}\np-value: {3}\nstd. error: {4}\n".format(slope, intercept, r, p, std_error))
-    plt.legend()
-    plt.ylabel('Number of Seasons')
-    plt.title('Linear Regression for Number of Seasons vs. Show Rating')
-
-    plt.xlabel('Show Rating')
-    plt.savefig('Results3.pdf')
-    plt.show()
-
-
 
 # Perform analysis specific to question 4: Predict Revenue
-# Run PCA then use neural net to predict revenue
 def perform_4(db):
     result = query_db(db, 4).fetchall()
 
-    # split into predicted value revenue and input variables data
-    revenue = [x[0] for x in result]
-    data = [(x[1:]) for x in result]
-
-    df = pd.DataFrame(data)
-
-    # create and train network
-    clf = MLPRegressor(alpha=0.01, hidden_layer_sizes=(10,), max_iter=50000, early_stopping=False, batch_size=100,
-                       activation='relu',  solver='adam', verbose=True,
-                       learning_rate_init=0.001, learning_rate='adaptive', tol=0.000000000000000000001)
-    clf.fit(df, revenue)
-
-
-    pred_revenue = clf.predict(data)  # predict network output given input data
-    plt.scatter(revenue, pred_revenue)  # plot network output vs target output
-    plt.xlabel('Acutal Revenue (in Millions)')
-    plt.ylabel('Predicted Revenue (in Millions)')
-
-    # create a linear regression line, ideal fit has slope == 1
-    revenue = np.array(revenue)
-    slope, intercept, r, p, std_error = scipy.stats.linregress(revenue, pred_revenue)
-    plt.plot(revenue, intercept + slope * revenue, 'r', label="Fit, r={}, slope = {}".format(r, slope))
-
-    plt.legend()
-    plt.savefig('Results5.png')
-    plt.show()
-
-    '''
-    pca = PCA()
-    pca.fit(result)
-    print(pca.explained_variance_)
-    print(pca.explained_variance_ratio_)
-
-    pca = PCA()
-    pca.fit(result)
-    print(pca.explained_variance_ratio_)
-    plt.plot(np.cumsum(pca.explained_variance_ratio_))
-    plt.xlabel('number of components')
-    plt.ylabel('cumulative explained variance')
-    plt.savefig('Results4.png')
-    plt.show()
-    '''
-    #pca = PCA(n_components=7)
-    #pca.fit(result)
-    #print(pca.explained_variance_)
-
-    #X_pca = pca.transform(result)
-    #print("original shape:   ", len(result[0]))
-    #print("transformed shape:", X_pca.shape)
-
 
 # Perform analysis specific to question 5: Predict Revenue
-# do multiple linear regression to predict revenue using
 def perform_5(db):
     result = query_db(db, 5).fetchall()
     print(len(result))
@@ -285,7 +208,7 @@ def main():
     # Create a database manager based on the path
     db = DB_Manager.DBManager(path)
 
-    perform_4(db)
+    perform_1(db)
 
     # Close the database connection cleanly
     db.close_connection()
