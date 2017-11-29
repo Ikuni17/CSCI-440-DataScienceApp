@@ -75,6 +75,7 @@ def diagnostic_plots(vector):
 
 # Perform analysis specific to question 1: Mean Revenue by Genre
 def perform_1(db):
+    # 1589 rows
     result = query_db(db, 1).fetchall()
     result_dict = {}
 
@@ -96,10 +97,34 @@ def perform_1(db):
         else:
             genre_dict[genres] = [v[0][0]]
 
-    print(genre_dict)
+    # print(genre_dict)
     # print(result_dict)
 
-    # f, p = scipy.stats.f_oneway(genre_dict)
+    revenue_lists = []
+    for k, v in genre_dict.items():
+        revenue_lists.append(v)
+
+    #print(revenue_lists)
+
+    f, p = scipy.stats.f_oneway(*revenue_lists)
+    print("F stat: {0}".format(f))
+    print("p-value: {0}".format(p))
+
+    means = []
+    genres = []
+    #mean_dict = {}
+    for k,v in genre_dict.items():
+        #mean_dict[k] = stats.mean(v)
+        genres.append(k)
+        means.append(stats.mean(v))
+
+    #print(len(genres))
+    plt.style.use('seaborn')
+    plt.figure(figsize=(15.5, 9.5), dpi=100)
+    plt.bar(genres, means, align='center')
+    plt.xticks(rotation='vertical')
+    #plt.set_xticklabels(genres, rotation='vertical', fontsize=8)
+    plt.show()
 
 
 # Perform analysis specific to question 2: Linear Regression Num Votes and Rating
@@ -179,7 +204,7 @@ def main():
     # Create a database manager based on the path
     db = DB_Manager.DBManager(path)
 
-    perform_5(db)
+    perform_1(db)
 
     # Close the database connection cleanly
     db.close_connection()
