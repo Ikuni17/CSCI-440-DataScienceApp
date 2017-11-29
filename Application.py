@@ -213,7 +213,6 @@ def perform_3(db):
 # Perform analysis specific to question 4: Predict Revenue
 # Run PCA then use neural net to predict revenue
 def perform_4(db):
-    # 642 rows, not sure if title should be considered
     result = query_db(db, 4).fetchall()
 
     # split into predicted value revenue and input variables data
