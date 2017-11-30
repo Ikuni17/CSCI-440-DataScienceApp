@@ -62,6 +62,15 @@ def query_db(db, question_num):
                 "AND K.Revenue IS NOT NULL " \
                 "AND K.Budget IS NOT NULL " \
                 "AND K.Content_rating IS NOT NULL"
+    elif question_num == 6:
+        query = 'SELECT DISTINCT Is_adult, R.Avg_rating, Start_year, Runtime ' \
+                'FROM IMDB I, RATINGS R ' \
+                'WHERE I.Tconst = R.Tconst ' \
+                'AND Start_year IS NOT NULL ' \
+                'AND Runtime IS NOT NULL ' \
+                'AND Avg_rating IS NOT NULL ' \
+                'AND Is_adult IS NOT NULL'
+
 
     return db.perform_query(query)
 
@@ -184,7 +193,7 @@ def perform_3(db):
 
     # check the accuracy on the training set
     print("Model Score is: {}".format(model.score(df, num_seasons)))
-    
+
     '''
     print(rating)
     slope, intercept, r, p, std_error = scipy.stats.linregress(rating, num_seasons)
@@ -208,6 +217,7 @@ def perform_3(db):
 def perform_4(db):
     # 642 rows, not sure if title should be considered
     result = query_db(db, 4).fetchall()
+    #TODO add learning curve for machine, create single line of average error over PCA reduction on network
 
     # split into predicted value revenue and input variables data
     colors = {0:'k', 1:'b', 2:'g', 3:'r', 4:'c', 5:'y', 6:'m'}
@@ -265,7 +275,7 @@ def perform_4(db):
     plt.xlabel('Number of Components')
     plt.ylabel('Average Mean Square Error of Networks')
     plt.legend()
-    plt.savefig('Results5Linear.png')
+    plt.savefig('Results4Linear.png')
     plt.show()
     return
 
@@ -343,9 +353,56 @@ def perform_4(db):
 
 # Perform analysis specific to question 5: Predict Revenue
 # do multiple linear regression to predict revenue using
+# sam don't work on 5
 def perform_5(db):
     result = query_db(db, 5).fetchall()
-    print(len(result))
+
+    revenue = np.array([x[0] for x in result])
+    data = [x[1:] for x in result]
+
+    ratings = np.unique([x[1] for x in data])
+    encoded = {ratings[i]: '00000' for i in range(len(ratings))}
+
+    df = pd.DataFrame({'rating': ratings})
+    print(pd.get_dummies(df))
+
+    clf = lm.LinearRegression()
+    clf.fit(data, revenue)
+
+def perform_6(db):
+    # TODO predict the title type, requires one-hot encoding
+    result = query_db(db, 6).fetchall()
+
+    #print(np.unique([x[0] for x in result]))
+
+    type = np.array([x[0] for x in result])
+    data = [x[1:] for x in result]
+
+    df = pd.DataFrame(data)
+    model = lm.LogisticRegression()
+    model.fit(df, type)
+
+    print("Model Score is: {}".format(model.score(df, type)))
+
+
+
+    #plt.scatter([x[0] for x in data], type)
+    #plt.plot(data, model.predict(df), color='r')
+
+    plt.figure(figsize=(14, 7))
+    print('mean = {}'.format(stats.mean([int(x) for x in type])))
+    #Is_adult, R.Avg_rating, Start_year, Runtime
+    encoded_colors = ['k' if x==0 else 'c' for x in type]
+    plt.scatter([x[0] for x in data], [x[1] for x in data], s=[x[2]/2 for x in data] ,alpha=0.4, c=encoded_colors)
+    #plt.plot(data, model.predict(df), color='r')
+
+    plt.legend()
+    plt.ylabel('Rating')
+    plt.xlabel('Is Adult')
+    plt.savefig('Results6.png')
+    plt.show()
+
+
 
 
 def main():
