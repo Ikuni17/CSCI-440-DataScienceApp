@@ -40,7 +40,10 @@ def query_db(db, question_num):
                 'WHERE E.Econst = R.Tconst ' \
                 'AND E.Season_Num IS NOT NULL ' \
                 'AND E.Season_Num < 50 ' \
-                'AND R.Avg_rating IS NOT NULL'
+                'AND E.Season_Num > 0 ' \
+                'AND R.Avg_rating IS NOT NULL ' \
+                'AND R.Avg_rating > 0 ' \
+                'AND R.Avg_rating < 10'
     elif question_num == 4:
         query = 'SELECT DISTINCT Revenue, Start_year, Runtime, Face_number, ' \
                 'FB_likes, Rank, Meta_score ' \
@@ -82,8 +85,8 @@ def diagnostic_plots(vector):
     leverage_plot = sm.graphics.influence_plot(reg, size=15)
     leverage_plot.savefig('leverage.png')
 
-    exog = sm.graphics.plot_regress_exog(reg)
-    exog.savefig('exog.png')
+    # exog = sm.graphics.plot_regress_exog(reg)
+    # exog.savefig('exog.png')
 
 
 # Perform analysis specific to question 1: Mean Revenue by Genre
@@ -125,8 +128,6 @@ def perform_2(db):
     # Split into two vectors
     rating = temp_vector['f0']
     num_votes = temp_vector['f1']
-    # Log Transform number of votes to linearize the relationship
-    log_num_votes = np.log(num_votes)
 
     '''use_transform = True
 
@@ -134,6 +135,8 @@ def perform_2(db):
     plt.figure(figsize=(15.5, 9.5), dpi=100)
 
     if use_transform:
+        # Log Transform number of votes to linearize the relationship
+        log_num_votes = np.log(num_votes)
         slope, intercept, r, p, std_error = scipy.stats.linregress(log_num_votes, rating)
         plt.scatter(log_num_votes, rating, label='Data')
         plt.plot(log_num_votes, intercept + slope * log_num_votes, 'r', label="Fit, r={0}".format(r))
@@ -163,14 +166,15 @@ def perform_3(db):
     result = query_db(db, 3)
     # Convert to numpy array
     temp_vector = np.fromiter(result.fetchall(), 'i4,f')
+    diagnostic_plots(temp_vector)
     # Split into two vectors
 
     num_seasons = temp_vector['f0']
+    #num_seasons = np.log(num_seasons)
     rating = temp_vector['f1']
 
-
     df = pd.DataFrame(rating)
-    model = lm.LogisticRegression()
+    '''model = lm.LogisticRegression()
     model.fit(df, num_seasons)
 
     plt.scatter(rating, num_seasons)
@@ -185,8 +189,8 @@ def perform_3(db):
     # check the accuracy on the training set
     print("Model Score is: {}".format(model.score(df, num_seasons)))
     
-    '''
-    print(rating)
+
+    print(rating)'''
     slope, intercept, r, p, std_error = scipy.stats.linregress(rating, num_seasons)
     plt.scatter(rating, num_seasons, label='Data')
     plt.plot(rating, intercept + slope * rating, 'r', label="Fit, r={0}".format(r))
@@ -200,7 +204,6 @@ def perform_3(db):
     plt.xlabel('Show Rating')
     plt.savefig('Results3.pdf')
     plt.show()
-    '''
 
 
 # Perform analysis specific to question 4: Predict Revenue
@@ -210,7 +213,7 @@ def perform_4(db):
     result = query_db(db, 4).fetchall()
 
     # split into predicted value revenue and input variables data
-    colors = {0:'k', 1:'b', 2:'g', 3:'r', 4:'c', 5:'y', 6:'m'}
+    colors = {0: 'k', 1: 'b', 2: 'g', 3: 'r', 4: 'c', 5: 'y', 6: 'm'}
     revenue = np.array([x[0] for x in result])
     data = [x[1:] for x in result]
 
@@ -219,7 +222,7 @@ def perform_4(db):
     axes = plt.gca()
     axes.set_xlim([0, 7])
     axes.set_ylim([0, 250000])
-    trend = {'x': [1,2,3,4,5,6], 'y': [0,0,0,0,0,0]}
+    trend = {'x': [1, 2, 3, 4, 5, 6], 'y': [0, 0, 0, 0, 0, 0]}
 
     for j in range(5):
         output = {'x': [], 'y': []}
@@ -233,7 +236,8 @@ def perform_4(db):
             pca_output = []
 
             for train_index, test_index in kf.split(data):
-                clf = MLPRegressor(alpha=0.01, hidden_layer_sizes=(100,), max_iter=50000, early_stopping=False, batch_size=100,
+                clf = MLPRegressor(alpha=0.01, hidden_layer_sizes=(100,), max_iter=50000, early_stopping=False,
+                                   batch_size=100,
                                    activation='relu', solver='adam', verbose=False,
                                    learning_rate_init=0.001, learning_rate='adaptive', tol=0.000000000000000000001)
 
@@ -241,22 +245,22 @@ def perform_4(db):
 
                 pred_revenue = clf.predict(data[test_index])  # predict network output given input data
                 target_revenue = revenue[test_index]
-                error = [(pred_revenue[x] - target_revenue[x])**2 for x in range(len(pred_revenue))]
+                error = [(pred_revenue[x] - target_revenue[x]) ** 2 for x in range(len(pred_revenue))]
                 error = sum(error) / len(error)
-                #print("predicted rev = {}".format(pred_revenue))
-                #print('target rev = {}'.format(target_revenue))
-                #print('error = {}'.format(error))
+                # print("predicted rev = {}".format(pred_revenue))
+                # print('target rev = {}'.format(target_revenue))
+                # print('error = {}'.format(error))
 
                 pca_output += [error]
                 plt.scatter(i, error, color=colors[j])
 
             output['y'] += [sum(pca_output) / len(pca_output)]
             output['x'] += [i]
-            #print('network outputs = {}'.format(pca_output))
-            #print('avg error of folds = {}'.format(sum(pca_output) / len(pca_output)))
-            #print(output)
+            # print('network outputs = {}'.format(pca_output))
+            # print('avg error of folds = {}'.format(sum(pca_output) / len(pca_output)))
+            # print(output)
 
-        trend['y'] = [trend['y'][x] + (output['y'][x] - output['y'][x+1]) for x in range(len(output['y'])-1)]
+        trend['y'] = [trend['y'][x] + (output['y'][x] - output['y'][x + 1]) for x in range(len(output['y']) - 1)]
         plt.plot(output['x'], output['y'], color=colors[j])
 
     trend['y'] = [(trend['y'][x] / 5) + 150000 for x in range(len(trend['y']))] + [150000]
@@ -298,10 +302,9 @@ def perform_4(db):
 
     # create and train network
     clf = MLPRegressor(alpha=0.01, hidden_layer_sizes=(10,), max_iter=50000, early_stopping=False, batch_size=100,
-                       activation='relu',  solver='adam', verbose=True,
+                       activation='relu', solver='adam', verbose=True,
                        learning_rate_init=0.001, learning_rate='adaptive', tol=0.000000000000000000001)
     clf.fit(df, revenue)
-
 
     pred_revenue = clf.predict(data)  # predict network output given input data
     plt.scatter(revenue, pred_revenue)  # plot network output vs target output
@@ -332,13 +335,13 @@ def perform_4(db):
     plt.savefig('Results4.png')
     plt.show()
     '''
-    #pca = PCA(n_components=7)
-    #pca.fit(result)
-    #print(pca.explained_variance_)
+    # pca = PCA(n_components=7)
+    # pca.fit(result)
+    # print(pca.explained_variance_)
 
-    #X_pca = pca.transform(result)
-    #print("original shape:   ", len(result[0]))
-    #print("transformed shape:", X_pca.shape)
+    # X_pca = pca.transform(result)
+    # print("original shape:   ", len(result[0]))
+    # print("transformed shape:", X_pca.shape)
 
 
 # Perform analysis specific to question 5: Predict Revenue
@@ -360,7 +363,7 @@ def main():
     # Create a database manager based on the path
     db = DB_Manager.DBManager(path)
 
-    perform_1(db)
+    perform_3(db)
 
     # Close the database connection cleanly
     db.close_connection()
