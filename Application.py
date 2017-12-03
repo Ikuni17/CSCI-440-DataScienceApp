@@ -1,7 +1,7 @@
 '''
 Sam Congdon and Bradley White
 CSCI 440: Data Science Application
-November 15, 2017
+December 3, 2017
 '''
 
 import DB_Manager
@@ -21,10 +21,19 @@ from sklearn.neural_network import MLPRegressor
 from sklearn.model_selection import KFold
 
 
-
 # Get the results from the DB for a specific question
 def query_db(db, question_num):
-    # Get the correct query for the question
+    ''' Question 1 is interested in the mean revenue, per genre. Since the genre table is normalized this query
+     requires post processing to get the data in a format which can used for a One-Way ANOVA model.
+     Question 2 is interested in
+     Question 3 is determining if there is a linear relationship between the number of seasons and the average rating
+     of a TV show. This is used within a linear regression model. Season numbers are limited to 50 because there are
+     a few erroneous rows with 1000 seasons.
+     Question 4 is determining the features with the most influence on revenue through PCA. These features are then used
+     to build a neural network and predict revenue.
+     Question 5 is a different approach to predicting revenue. The variables are used within a Multiple Linear
+     Regression model, with content-rating as an indicator variable.
+    '''
     if question_num == 1:
         query = 'SELECT DISTINCT K.Tconst, K.Revenue, G.Genre ' \
                 'FROM KAGGLE K, Genre G ' \
@@ -54,7 +63,6 @@ def query_db(db, question_num):
                 'AND FB_likes IS NOT NULL ' \
                 'AND Rank IS NOT NULL ' \
                 'AND Meta_score IS NOT NULL'
-
     elif question_num == 5:
         query = "SELECT DISTINCT K.Revenue, K.Budget, K.Content_rating, R.Avg_rating " \
                 "FROM KAGGLE K, RATINGS R " \
@@ -71,36 +79,16 @@ def query_db(db, question_num):
                 'AND Avg_rating IS NOT NULL ' \
                 'AND Is_adult IS NOT NULL'
 
-
     return db.perform_query(query)
 
 
-def diagnostic_plots(vector):
-    reg = smf.ols('f0 ~ f1', data=vector).fit()
-    qq_plot = sm.qqplot(reg.resid, line='r')
-    qq_plot.savefig('qq.png')
-
-    stdres = pd.DataFrame(reg.resid_pearson)
-    plt.plot(stdres, 'o', ls='None')
-    l = plt.axhline(y=0, color='r')
-    plt.ylabel('Standardized Residual')
-    plt.xlabel('Observation Number')
-    # plt.legend()
-    # plt.show()
-
-    leverage_plot = sm.graphics.influence_plot(reg, size=15)
-    leverage_plot.savefig('leverage.png')
-
-    exog = sm.graphics.plot_regress_exog(reg)
-    exog.savefig('exog.png')
-
-
-# Perform analysis specific to question 1: Mean Revenue by Genre
+# Perform analysis specific to question 1: Mean Revenue by Genre with a One-Way ANOVA model
 def perform_1(db):
+    # Query the DB to get the relevant rows
     result = query_db(db, 1).fetchall()
-    result_dict = {}
 
     # Denormalize the genres into a dictionary with the structure: {Tconst: [[Revenue], [Genres]]}
+    result_dict = {}
     for row in result:
         if row[0] in result_dict:
             if row[2] not in result_dict[row[0]][1]:
@@ -108,21 +96,51 @@ def perform_1(db):
         else:
             result_dict[row[0]] = [[row[1]], [row[2]]]
 
-    # Create another dictionary with genres as the key and a list of revenues for that genre as the value
+    # Create another dictionary with the structure: {Genres: [Revenue]}
     genre_dict = {}
     for k, v in result_dict.items():
+        # Use sets so that movies with multiple genres in a different order will hash to the same key.
         genres = frozenset(v[1])
 
+        # If the genre is already in the dict, append this movie's revenue
         if genres in genre_dict:
             genre_dict[genres].append(v[0][0])
+        # Otherwise add a new key and the movie's revenue
         else:
             genre_dict[genres] = [v[0][0]]
 
-    print(genre_dict)
-    # print(result_dict)
+    # Create a 2D list of the revenues for One-Way ANOVA
+    revenue_lists = []
+    for k, v in genre_dict.items():
+        revenue_lists.append(v)
 
-    # f, p = scipy.stats.f_oneway(genre_dict)
+    # Perform the One-Way ANOVA and print the results
+    f, p = scipy.stats.f_oneway(*revenue_lists)
+    print("F stat: {0}".format(f))
+    print("p-value: {0}".format(p))
 
+    # Create two vectors for plotting
+    means = []
+    genres = []
+
+    for k, v in genre_dict.items():
+        # Convert the sets to strings to remove printing frozen({...})
+        temp = list(k)
+        temp.sort()
+        genres.append(','.join(temp))
+        # Calculate the mean for this genre
+        means.append(stats.mean(v))
+
+    # Create and plot with a bargraph
+    plt.style.use('seaborn')
+    plt.figure(figsize=(15.5, 9.5), dpi=100)
+    plt.bar(genres, means, align="center")
+    #plt.xticks(rotation='vertical')
+    plt.tick_params(labelbottom='off')
+
+    plt.xlabel("Genres")
+    plt.ylabel("Mean Revenue (Millions USD)")
+    plt.show()
 
 # Perform analysis specific to question 2: Linear Regression Num Votes and Rating
 def perform_2(db):
@@ -130,7 +148,6 @@ def perform_2(db):
     result = query_db(db, 2)
     # Convert to numpy array
     temp_vector = np.fromiter(result.fetchall(), 'f,i4')
-    diagnostic_plots(temp_vector)
     # Split into two vectors
     rating = temp_vector['f0']
     num_votes = temp_vector['f1']
@@ -177,7 +194,6 @@ def perform_3(db):
     num_seasons = temp_vector['f0']
     rating = temp_vector['f1']
 
-
     df = pd.DataFrame(rating)
     model = lm.LogisticRegression()
     model.fit(df, num_seasons)
@@ -189,7 +205,6 @@ def perform_3(db):
     plt.xlabel('Show Rating')
     plt.savefig('Results3.png')
     plt.show()
-
 
     # check the accuracy on the training set
     print("Model Score is: {}".format(model.score(df, num_seasons)))
@@ -217,10 +232,10 @@ def perform_3(db):
 def perform_4(db):
     # 642 rows, not sure if title should be considered
     result = query_db(db, 4).fetchall()
-    #TODO add learning curve for machine, create single line of average error over PCA reduction on network
+    # TODO add learning curve for machine, create single line of average error over PCA reduction on network
 
     # split into predicted value revenue and input variables data
-    colors = {0:'k', 1:'b', 2:'g', 3:'r', 4:'c', 5:'y', 6:'m'}
+    colors = {0: 'k', 1: 'b', 2: 'g', 3: 'r', 4: 'c', 5: 'y', 6: 'm'}
     revenue = np.array([x[0] for x in result])
     data = [x[1:] for x in result]
 
@@ -229,7 +244,7 @@ def perform_4(db):
     axes = plt.gca()
     axes.set_xlim([0, 7])
     axes.set_ylim([0, 250000])
-    trend = {'x': [1,2,3,4,5,6], 'y': [0,0,0,0,0,0]}
+    trend = {'x': [1, 2, 3, 4, 5, 6], 'y': [0, 0, 0, 0, 0, 0]}
 
     for j in range(5):
         output = {'x': [], 'y': []}
@@ -243,7 +258,8 @@ def perform_4(db):
             pca_output = []
 
             for train_index, test_index in kf.split(data):
-                clf = MLPRegressor(alpha=0.01, hidden_layer_sizes=(100,), max_iter=50000, early_stopping=False, batch_size=100,
+                clf = MLPRegressor(alpha=0.01, hidden_layer_sizes=(100,), max_iter=50000, early_stopping=False,
+                                   batch_size=100,
                                    activation='relu', solver='adam', verbose=False,
                                    learning_rate_init=0.001, learning_rate='adaptive', tol=0.000000000000000000001)
 
@@ -251,22 +267,22 @@ def perform_4(db):
 
                 pred_revenue = clf.predict(data[test_index])  # predict network output given input data
                 target_revenue = revenue[test_index]
-                error = [(pred_revenue[x] - target_revenue[x])**2 for x in range(len(pred_revenue))]
+                error = [(pred_revenue[x] - target_revenue[x]) ** 2 for x in range(len(pred_revenue))]
                 error = sum(error) / len(error)
-                #print("predicted rev = {}".format(pred_revenue))
-                #print('target rev = {}'.format(target_revenue))
-                #print('error = {}'.format(error))
+                # print("predicted rev = {}".format(pred_revenue))
+                # print('target rev = {}'.format(target_revenue))
+                # print('error = {}'.format(error))
 
                 pca_output += [error]
                 plt.scatter(i, error, color=colors[j])
 
             output['y'] += [sum(pca_output) / len(pca_output)]
             output['x'] += [i]
-            #print('network outputs = {}'.format(pca_output))
-            #print('avg error of folds = {}'.format(sum(pca_output) / len(pca_output)))
-            #print(output)
+            # print('network outputs = {}'.format(pca_output))
+            # print('avg error of folds = {}'.format(sum(pca_output) / len(pca_output)))
+            # print(output)
 
-        trend['y'] = [trend['y'][x] + (output['y'][x] - output['y'][x+1]) for x in range(len(output['y'])-1)]
+        trend['y'] = [trend['y'][x] + (output['y'][x] - output['y'][x + 1]) for x in range(len(output['y']) - 1)]
         plt.plot(output['x'], output['y'], color=colors[j])
 
     trend['y'] = [(trend['y'][x] / 5) + 150000 for x in range(len(trend['y']))] + [150000]
@@ -308,14 +324,13 @@ def perform_4(db):
 
     # create and train network
     clf = MLPRegressor(alpha=0.01, hidden_layer_sizes=(10,), max_iter=50000, early_stopping=False, batch_size=100,
-                       activation='relu',  solver='adam', verbose=True,
+                       activation='relu', solver='adam', verbose=True,
                        learning_rate_init=0.001, learning_rate='adaptive', tol=0.000000000000000000001)
     clf.fit(df, revenue)
 
-
     pred_revenue = clf.predict(data)  # predict network output given input data
     plt.scatter(revenue, pred_revenue)  # plot network output vs target output
-    plt.xlabel('Acutal Revenue (in Millions)')
+    plt.xlabel('Actual Revenue (in Millions)')
     plt.ylabel('Predicted Revenue (in Millions)')
 
     # create a linear regression line, ideal fit has slope == 1
@@ -342,13 +357,13 @@ def perform_4(db):
     plt.savefig('Results4.png')
     plt.show()
     '''
-    #pca = PCA(n_components=7)
-    #pca.fit(result)
-    #print(pca.explained_variance_)
+    # pca = PCA(n_components=7)
+    # pca.fit(result)
+    # print(pca.explained_variance_)
 
-    #X_pca = pca.transform(result)
-    #print("original shape:   ", len(result[0]))
-    #print("transformed shape:", X_pca.shape)
+    # X_pca = pca.transform(result)
+    # print("original shape:   ", len(result[0]))
+    # print("transformed shape:", X_pca.shape)
 
 
 # Perform analysis specific to question 5: Predict Revenue
@@ -369,11 +384,12 @@ def perform_5(db):
     clf = lm.LinearRegression()
     clf.fit(data, revenue)
 
+
 def perform_6(db):
     # TODO predict the title type, requires one-hot encoding
     result = query_db(db, 6).fetchall()
 
-    #print(np.unique([x[0] for x in result]))
+    # print(np.unique([x[0] for x in result]))
 
     type = np.array([x[0] for x in result])
     data = [x[1:] for x in result]
@@ -384,25 +400,21 @@ def perform_6(db):
 
     print("Model Score is: {}".format(model.score(df, type)))
 
-
-
-    #plt.scatter([x[0] for x in data], type)
-    #plt.plot(data, model.predict(df), color='r')
+    # plt.scatter([x[0] for x in data], type)
+    # plt.plot(data, model.predict(df), color='r')
 
     plt.figure(figsize=(14, 7))
     print('mean = {}'.format(stats.mean([int(x) for x in type])))
-    #Is_adult, R.Avg_rating, Start_year, Runtime
-    encoded_colors = ['k' if x==0 else 'c' for x in type]
-    plt.scatter([x[0] for x in data], [x[1] for x in data], s=[x[2]/2 for x in data] ,alpha=0.4, c=encoded_colors)
-    #plt.plot(data, model.predict(df), color='r')
+    # Is_adult, R.Avg_rating, Start_year, Runtime
+    encoded_colors = ['k' if x == 0 else 'c' for x in type]
+    plt.scatter([x[0] for x in data], [x[1] for x in data], s=[x[2] / 2 for x in data], alpha=0.4, c=encoded_colors)
+    # plt.plot(data, model.predict(df), color='r')
 
     plt.legend()
     plt.ylabel('Rating')
     plt.xlabel('Is Adult')
     plt.savefig('Results6.png')
     plt.show()
-
-
 
 
 def main():
