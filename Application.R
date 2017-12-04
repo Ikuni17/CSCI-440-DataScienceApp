@@ -40,8 +40,10 @@ perform_5 <- function(){
     # Get the correct query and use it to get the results from the database
     query <- db_query(5)
     results <- dbGetQuery(imdb, query)
+    print("Retrieved question 5 results from database")
     # Convert content rating to an indicator variable
     results$Content_rating <- as.factor(results$Content_rating)
+    print("Finished post-processing, building Multiple Linear Regression model")
     # Build the linear model
     lm1 = lm(Revenue ~ Budget + Content_rating + Avg_rating, data = results)
     # Print the summary for the linear model which contains estimated slope and y intercept, std. error, t stats,
@@ -49,6 +51,7 @@ perform_5 <- function(){
     print(summary(lm1))
     # Create the four diagnostic plots in a 2x2 grid and save to file. The four plots are Residuals vs Fitted, Normal
     # Q-Q Plot, Scale Location, and Residuals vs Leverage
+    print("Outputting question 5 results to Results directory")
     pdf("Results\\5-Diagnostics.pdf")
     par(mfrow = c(2, 2))
     plot(lm1)

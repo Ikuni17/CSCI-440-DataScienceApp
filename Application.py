@@ -20,6 +20,7 @@ from sklearn.model_selection import KFold
 from sklearn.neural_network import MLPRegressor
 import statistics as stats
 import subprocess as sub
+import time
 
 
 # Get the results from the DB for a specific question
@@ -85,6 +86,7 @@ def perform_1(db):
     # Query the DB to get the relevant rows
     result = query_db(db, 1).fetchall()
 
+    print("Retrieved question 1 results from database")
     # Denormalize the genres into a dictionary with the structure: {Tconst: [[Revenue], [Genres]]}
     result_dict = {}
     for row in result:
@@ -112,10 +114,11 @@ def perform_1(db):
     for k, v in genre_dict.items():
         revenue_lists.append(v)
 
+    print("Finished post-processing, building One-Way ANOVA model")
     # Perform the One-Way ANOVA and print the results
     f, p = scipy.stats.f_oneway(*revenue_lists)
-    print("F stat: {0}".format(f))
-    print("p-value: {0}".format(p))
+    # print("F stat: {0}".format(f))
+    # print("p-value: {0}".format(p))
 
     means = []
     genres = []
@@ -147,6 +150,7 @@ def perform_1(db):
         top_10_genres.append(','.join(temp))
         top_10_means.append(x[1])
 
+    print("Outputting question 1 results to Results directory")
     # Create a horizontal bar graph with the top ten mean revenues
     plt.style.use('seaborn')
     plt.figure(figsize=(20, 11.5), dpi=100)
@@ -178,10 +182,12 @@ def perform_2(db):
         to classify the data in response to the attributes. '''
 
     result = query_db(db, 2).fetchall()
+    print("Retrieved question 2 results from database")
 
     type = np.array([x[0] for x in result])
     data = [x[1:] for x in result]
 
+    print("Finished post-processing, building Logistic Regression model")
     # determine the accuracy that could be achieved if the most common class was predicted every time
     model = DummyClassifier(strategy='most_frequent')
     model.fit(data, type)
@@ -198,6 +204,7 @@ def perform_2(db):
     # predict the data on model
     predicted_types = model.predict(data)
 
+    print("Outputting question 2 results to Results directory")
     # create tables of each attribute
     rating = [x[1] for x in data]
     year = [x[2] for x in data]
@@ -208,7 +215,9 @@ def perform_2(db):
 
     # create the first plot, plotting each individual's Year against Rating
     plt.figure(figsize=(14, 7))
-    plt.title('Heatmap of Correct Predictions Plotted over Rating vs. Year\nModel Score = {:.4}, Majority Classifier Score = {:.4}'.format(score, majority_accuracy))
+    plt.title(
+        'Heatmap of Correct Predictions Plotted over Rating vs. Year\nModel Score = {:.4}, '
+        'Majority Classifier Score = {:.4}'.format(score, majority_accuracy))
 
     # group the data by (y, x) axis, and the True/False values for the heatmap
     res = df.groupby(['Year', 'Rating'])['Percent Correct'].mean().unstack()
@@ -227,7 +236,9 @@ def perform_2(db):
 
     # create the second plot, plotting each individual's Year against Runtime
     plt.figure(figsize=(14, 7))
-    plt.title('Heatmap of Correct Predictions Plotted over Runtime vs. Year\nModel Score = {:.4}, Majority Classifier Score = {:.4}'.format(score, majority_accuracy))
+    plt.title(
+        'Heatmap of Correct Predictions Plotted over Runtime vs. Year\nModel Score = {:.4}, Majority Classifier Score = {:.4}'.format(
+            score, majority_accuracy))
 
     res = df.groupby(['Year', 'Runtime'])['Percent Correct'].mean().unstack()
     ax = seaborn.heatmap(res, linewidth=0, cbar_kws={'label': 'Percent of Classifications Correct'})
@@ -240,7 +251,9 @@ def perform_2(db):
 
     # create the third plot, plotting each individual's Runtime against Rating
     plt.figure(figsize=(14, 7))
-    plt.title('Heatmap of Correct Predictions Plotted over Rating vs. Runtime\nModel Score = {:.4}, Majority Classifier Score = {:.4}'.format(score, majority_accuracy))
+    plt.title(
+        'Heatmap of Correct Predictions Plotted over Rating vs. Runtime\nModel Score = {:.4}, Majority Classifier Score = {:.4}'.format(
+            score, majority_accuracy))
 
     res = df.groupby(['Runtime', 'Rating'])['Percent Correct'].mean().unstack()
     xticks = np.arange(10 + 1)
@@ -261,6 +274,8 @@ def perform_3(db):
         plotting the line over the data points, saving the figure to Results3.png '''
 
     result = query_db(db, 3)
+    print("Retrieved question 3 results from database")
+
     # Convert to numpy array
     temp_vector = np.fromiter(result.fetchall(), 'i4,f')
 
@@ -268,10 +283,12 @@ def perform_3(db):
     num_seasons = temp_vector['f0']
     rating = temp_vector['f1']
 
-    plt.figure(figsize=(14, 7))
-
+    print("Finished post-processing, building Linear Regression model")
     # retrieve the attributes of line fit with linear regression
     slope, intercept, r, p, std_error = scipy.stats.linregress(rating, num_seasons)
+
+    print("Outputting question 3 results to Results directory")
+    plt.figure(figsize=(14, 7))
     # plot the data on the chart
     plt.scatter(rating, num_seasons, label='Data')
     # plot the line on the chart
@@ -285,7 +302,7 @@ def perform_3(db):
     plt.xlabel('Show Rating')
 
     plt.savefig('Results/Results3.pdf')
-    #plt.show()
+    # plt.show()
 
 
 def determine_components(data, output, labels, f_regress=False):
@@ -340,6 +357,7 @@ def perform_4(db):
 
     # retrieve the data relevant to this question from the DataBase
     result = query_db(db, 4).fetchall()
+    print("Retrieved question 4 results from database")
     labels = ['Revenue', 'Start_year', 'Runtime', 'Face_number', 'FB_likes', 'Rank', 'Meta_score']
 
     # f_regression is an alternate feature selection method, however tuning revealed mutual_info_regression to
@@ -364,6 +382,7 @@ def perform_4(db):
 
     # colors = {0:'k', 1:'b', 2:'g', 3:'r', 4:'c', 5:'y', 6:'m'}
 
+    print("Finished post-processing, building Neural Network models")
     # run an entire test (training/testing a network on each set of attributes) this many times
     for j in range(number_of_tests):
         output = {'x': [], 'y': []}
@@ -383,7 +402,6 @@ def perform_4(db):
             else:
                 data = SelectKBest(mutual_info_regression, k=i).fit_transform(original_data, revenue)
             # print(data)
-
 
             # run a k-fold cross validation test, tracking mean squared error, on a neural net
             for train_index, test_index in kf.split(data):
@@ -418,6 +436,7 @@ def perform_4(db):
         trend['y'] = [trend['y'][x] + output['y'][x] for x in range(len(output['y']))]
         # plt.plot(output['x'], output['y'], color=colors[j])
 
+    print("Outputting question 4 results to Results directory")
     # trend['y'] = [(trend['y'][x] / 5) + 150000 for x in range(len(trend['y']))] + [150000]
     # average the testing error of the network trained on each set of components over all the tests run
     trend['y'] = [(trend['y'][x] / number_of_tests) for x in range(len(trend['y']))]
@@ -449,7 +468,9 @@ def perform_4(db):
 # Perform analysis specific to question 5: Predict Revenue with Multiple Linear Regression in R.
 def perform_5(db):
     # Start a subprocess to call the R executable and start the script
-    sub.Popen([r"C:\Program Files\R\R-3.4.1\bin\x64\Rscript.exe", r".\Application.R"])
+    print("Calling R Script for question 5")
+    sub.Popen([r"C:\Program Files\R\R-3.4.1\bin\x64\Rscript.exe", r".\Application.R"], stderr=sub.PIPE)
+    time.sleep(4)
 
 
 def main():
@@ -464,7 +485,7 @@ def main():
     # Create a database manager based on the path
     db = DB_Manager.DBManager(path)
 
-    perform_1(db)
+    perform_5(db)
 
     # Close the database connection cleanly
     db.close_connection()
@@ -472,5 +493,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
