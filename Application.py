@@ -76,14 +76,6 @@ def query_db(db, question_num):
                 "AND K.Revenue IS NOT NULL " \
                 "AND K.Budget IS NOT NULL " \
                 "AND K.Content_rating IS NOT NULL"
-    elif question_num == 6:
-        query = 'SELECT DISTINCT Is_adult, R.Avg_rating, Start_year, Runtime ' \
-                'FROM IMDB I, RATINGS R ' \
-                'WHERE I.Tconst = R.Tconst ' \
-                'AND Start_year IS NOT NULL ' \
-                'AND Runtime IS NOT NULL ' \
-                'AND Avg_rating IS NOT NULL ' \
-                'AND Is_adult IS NOT NULL'
 
     return db.perform_query(query)
 
@@ -177,18 +169,13 @@ def perform_1(db):
     plt.savefig('Results\\1-AllGenres.png')
     #plt.show()
 
-
 # Perform analysis specific to question 2: Linear Regression of Title type vs Runtime, Rating, Year, and Is_adult
 def perform_2(db):
-    # 754224 rows
-    result = query_db(db, 2)
-    # Convert to numpy array
-    temp_vector = np.fromiter(result.fetchall(), 'f,i4')
-    # Split into two vectors
-    rating = temp_vector['f0']
-    num_votes = temp_vector['f1']
-    # Log Transform number of votes to linearize the relationship
-    log_num_votes = np.log(num_votes)
+    ''' This method analyzes how well Logistic Regression can predict a Title_type of a production.
+        The prediction is performed using 4 attributes: Is_adult, R.Avg_rating, Start_year, and Runtime.
+        The results of the predictions are recorded in three heat maps, plotted against combination of
+        the latter three attributes. These heatmaps show patterns in how logistic regressions was able
+        to classify the data in response to the attributes. '''
 
     result = query_db(db, 2).fetchall()
 
@@ -274,23 +261,9 @@ def perform_3(db):
     num_seasons = temp_vector['f0']
     rating = temp_vector['f1']
 
-    df = pd.DataFrame(rating)
-    model = lm.LogisticRegression()
-    model.fit(df, num_seasons)
+    plt.figure(figsize=(14, 7))
 
-    plt.scatter(rating, num_seasons)
-    plt.plot(rating, model.predict(df), color='r')
-
-    plt.ylabel('Number of Seasons')
-    plt.xlabel('Show Rating')
-    plt.savefig('Results3.png')
-    plt.show()
-
-    # check the accuracy on the training set
-    print("Model Score is: {}".format(model.score(df, num_seasons)))
-
-    '''
-    print(rating)
+    # retrieve the attributes of line fit with linear regression
     slope, intercept, r, p, std_error = scipy.stats.linregress(rating, num_seasons)
     # plot the data on the chart
     plt.scatter(rating, num_seasons, label='Data')
@@ -359,10 +332,13 @@ def perform_4(db):
 
     # retrieve the data relevant to this question from the DataBase
     result = query_db(db, 4).fetchall()
-    # TODO add learning curve for machine, create single line of average error over PCA reduction on network
+    labels = ['Revenue', 'Start_year', 'Runtime', 'Face_number', 'FB_likes', 'Rank', 'Meta_score']
+
+    # f_regression is an alternate feature selection method, however tuning revealed mutual_info_regression to
+    # perform better on the selected data. Thus, f_regression is not used in the final application
+    f_regress = False
 
     # split into predicted value revenue and input variables data
-    colors = {0: 'k', 1: 'b', 2: 'g', 3: 'r', 4: 'c', 5: 'y', 6: 'm'}
     revenue = np.array([x[0] for x in result])
     original_data = [x[1:] for x in result]
 
@@ -373,9 +349,10 @@ def perform_4(db):
     plt.figure(figsize=(14, 7))
     plt.grid(True)
     axes = plt.gca()
-    axes.set_xlim([0, 7])
-    axes.set_ylim([0, 250000])
-    trend = {'x': [1, 2, 3, 4, 5, 6], 'y': [0, 0, 0, 0, 0, 0]}
+    #axes.set_xlim([0, 7])
+    #axes.set_ylim([0, 250000])
+    number_of_tests = 100
+    trend = {'x': [1,2,3,4,5,6], 'y': [0,0,0,0,0,0]}
 
     # colors = {0:'k', 1:'b', 2:'g', 3:'r', 4:'c', 5:'y', 6:'m'}
 
@@ -402,8 +379,8 @@ def perform_4(db):
 
             # run a k-fold cross validation test, tracking mean squared error, on a neural net
             for train_index, test_index in kf.split(data):
-                clf = MLPRegressor(alpha=0.01, hidden_layer_sizes=(100,), max_iter=50000, early_stopping=False,
-                                   batch_size=100,
+                # train the network
+                clf = MLPRegressor(alpha=0.01, hidden_layer_sizes=(100,), max_iter=50000, early_stopping=False, batch_size=100,
                                    activation='relu', solver='adam', verbose=False,
                                    learning_rate_init=0.001, learning_rate='adaptive', tol=0.000000000000000000001)
                 clf.fit(data[train_index], revenue[train_index])
@@ -411,11 +388,11 @@ def perform_4(db):
                 # test the network on the test data, calculate mean squared error
                 pred_revenue = clf.predict(data[test_index])  # predict network output given input data
                 target_revenue = revenue[test_index]
-                error = [(pred_revenue[x] - target_revenue[x]) ** 2 for x in range(len(pred_revenue))]
+                error = [(pred_revenue[x] - target_revenue[x])**2 for x in range(len(pred_revenue))]
                 error = sum(error) / len(error)
-                # print("predicted rev = {}".format(pred_revenue))
-                # print('target rev = {}'.format(target_revenue))
-                # print('error = {}'.format(error))
+                #print("predicted rev = {}".format(pred_revenue))
+                #print('target rev = {}'.format(target_revenue))
+                #print('error = {}'.format(error))
 
                 pca_output += [error]
                 #plt.scatter(i, error, color=colors[j])
@@ -423,12 +400,10 @@ def perform_4(db):
             # average the error of the k-folds tests over each component set
             output['y'] += [sum(pca_output) / len(pca_output)]
             output['x'] += [i]
-            # print('network outputs = {}'.format(pca_output))
-            # print('avg error of folds = {}'.format(sum(pca_output) / len(pca_output)))
-            # print(output)
+            #print('network outputs = {}'.format(pca_output))
+            #print('avg error of folds = {}'.format(sum(pca_output) / len(pca_output)))
+            #print(output)
 
-        trend['y'] = [trend['y'][x] + (output['y'][x] - output['y'][x + 1]) for x in range(len(output['y']) - 1)]
-        plt.plot(output['x'], output['y'], color=colors[j])
 
         #trend['y'] = [trend['y'][x] + (output['y'][x] - output['y'][x+1]) for x in range(len(output['y'])-1)]
         # sum the error of each test to be avered and plotted later
@@ -454,80 +429,11 @@ def perform_4(db):
     plt.title('Avg Prediction Error of {} Networks Trained on Varying Numbers of Attributes as Selected by Feature Selection'.format(number_of_tests))
     plt.xlabel('Components Included in Test ({})'.format(', '.join(ordered_labels)))
     plt.ylabel('Average Mean Square Error of Networks')
-    plt.legend()
-    plt.savefig('Results4Linear.png')
-    plt.show()
-    return
-
-    '''
-    #best lines come from PCA of 5,6,4
-    # loop to compare the linear regression over the different number of PCA components used
-    for i in reversed(range(1, 7)):
-        data = [(x[1:]) for x in result]
-        pca = PCA(n_components=i)
-        pca.fit(data)
-        data = pca.transform(data)
-        df = pd.DataFrame(data)
-
-        clf = MLPRegressor(alpha=0.01, hidden_layer_sizes=(100,), max_iter=50000, early_stopping=False, batch_size=100,
-                       activation='relu', solver='adam', verbose=True,
-                       learning_rate_init=0.001, learning_rate='adaptive', tol=0.000000000000000000001)
-        clf.fit(df, revenue)
-        pred_revenue = clf.predict(data)  # predict network output given input data
-        revenue = np.array(revenue)
-        slope, intercept, r, p, std_error = scipy.stats.linregress(revenue, pred_revenue)
-        plt.plot(revenue, intercept + slope * revenue, colors[i], label="Fit, r={}, slope = {}".format(r, slope))
-
-    plt.xlabel('Acutal Revenue (in Millions)')
-    plt.ylabel('Predicted Revenue (in Millions)')
-    plt.legend()
-    plt.savefig('Results5Linear.png')
-    plt.show()
-    return
-    '''
-
-    # create and train network
-    clf = MLPRegressor(alpha=0.01, hidden_layer_sizes=(10,), max_iter=50000, early_stopping=False, batch_size=100,
-                       activation='relu', solver='adam', verbose=True,
-                       learning_rate_init=0.001, learning_rate='adaptive', tol=0.000000000000000000001)
-    clf.fit(df, revenue)
-
-    pred_revenue = clf.predict(data)  # predict network output given input data
-    plt.scatter(revenue, pred_revenue)  # plot network output vs target output
-    plt.xlabel('Actual Revenue (in Millions)')
-    plt.ylabel('Predicted Revenue (in Millions)')
-
-    # create a linear regression line, ideal fit has slope == 1
-    revenue = np.array(revenue)
-    slope, intercept, r, p, std_error = scipy.stats.linregress(revenue, pred_revenue)
-    plt.plot(revenue, intercept + slope * revenue, 'r', label="Fit, r={}, slope = {}".format(r, slope))
-
-    plt.legend()
-    plt.savefig('Results5Linear.png')
-    plt.show()
-
-    '''
-    pca = PCA()
-    pca.fit(result)
-    print(pca.explained_variance_)
-    print(pca.explained_variance_ratio_)
-
-    pca = PCA()
-    pca.fit(result)
-    print(pca.explained_variance_ratio_)
-    plt.plot(np.cumsum(pca.explained_variance_ratio_))
-    plt.xlabel('number of components')
-    plt.ylabel('cumulative explained variance')
-    plt.savefig('Results4.png')
-    plt.show()
-    '''
-    # pca = PCA(n_components=7)
-    # pca.fit(result)
-    # print(pca.explained_variance_)
-
-    # X_pca = pca.transform(result)
-    # print("original shape:   ", len(result[0]))
-    # print("transformed shape:", X_pca.shape)
+    if f_regress:
+        plt.savefig('Results4 with f_regression.png')
+    else:
+        plt.savefig('Results4.png')
+    #plt.show()
 
 
 # Perform analysis specific to question 5: Predict Revenue
@@ -549,38 +455,6 @@ def perform_5(db):
     clf.fit(data, revenue)
 
 
-def perform_6(db):
-    # TODO predict the title type, requires one-hot encoding
-    result = query_db(db, 6).fetchall()
-
-    # print(np.unique([x[0] for x in result]))
-
-    type = np.array([x[0] for x in result])
-    data = [x[1:] for x in result]
-
-    df = pd.DataFrame(data)
-    model = lm.LogisticRegression()
-    model.fit(df, type)
-
-    print("Model Score is: {}".format(model.score(df, type)))
-
-    # plt.scatter([x[0] for x in data], type)
-    # plt.plot(data, model.predict(df), color='r')
-
-    plt.figure(figsize=(14, 7))
-    print('mean = {}'.format(stats.mean([int(x) for x in type])))
-    # Is_adult, R.Avg_rating, Start_year, Runtime
-    encoded_colors = ['k' if x == 0 else 'c' for x in type]
-    plt.scatter([x[0] for x in data], [x[1] for x in data], s=[x[2] / 2 for x in data], alpha=0.4, c=encoded_colors)
-    # plt.plot(data, model.predict(df), color='r')
-
-    plt.legend()
-    plt.ylabel('Rating')
-    plt.xlabel('Is Adult')
-    plt.savefig('Results6.png')
-    plt.show()
-
-
 def main():
     # Determine the path to the DB based on who is running this application
     if platform.system() is 'Windows':
@@ -593,7 +467,7 @@ def main():
     # Create a database manager based on the path
     db = DB_Manager.DBManager(path)
 
-    perform_1(db)
+    perform_2(db)
 
     # Close the database connection cleanly
     db.close_connection()
