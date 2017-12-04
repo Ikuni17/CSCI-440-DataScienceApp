@@ -172,7 +172,7 @@ def perform_1(db):
     # plt.show()
 
 
-# Perform analysis specific to question 2: Linear Regression of Title type vs Runtime, Rating, Year, and Is_adult
+# Perform analysis specific to question 2: Logistic Regression of Title type vs Runtime, Rating, Year, and Is_adult
 def perform_2(db):
     ''' This method analyzes how well Logistic Regression can predict a Title_type of a production.
         The prediction is performed using 4 attributes: Is_adult, R.Avg_rating, Start_year, and Runtime.
@@ -467,7 +467,7 @@ def main():
     # Create a database manager based on the path
     db = DB_Manager.DBManager(path)
 
-    perform_5(db)
+    perform_1(db)
 
     # Close the database connection cleanly
     db.close_connection()

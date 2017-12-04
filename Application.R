@@ -12,17 +12,8 @@ imdb <- dbConnect(RSQLite::SQLite(), 'C:\\IMDB\\D3 Python Script\\imdb.db')
 
 # Returns the query for a specific question
 db_query <- function(question) {
-    if (question == 1) {
-        query <- 'SELECT DISTINCT K.Tconst, K.Revenue, G.Genre ' \
-                'FROM KAGGLE K, Genre G ' \
-                'WHERE K.Tconst = G.Tconst ' \
-                'AND K.Revenue IS NOT NULL'
-    }else if (question == 2) {
-        query <- ''
-    }else if (question == 3) {
-        query <- ''
-    }else if (question == 4) {
-        query <- ''
+   if (question == 3) {
+        query <- 'SELECT DISTINCT E.Season_Num, R.Avg_rating FROM EPISODE E, RATINGS R WHERE E.Econst = R.Tconst AND E.Season_Num IS NOT NULL AND E.Season_Num < 50 AND R.Avg_rating IS NOT NULL'
     }else if (question == 5) {
         query <- 'SELECT DISTINCT K.Revenue, K.Budget, K.Content_rating, R.Avg_rating FROM KAGGLE K, RATINGS R WHERE K.Tconst = R.Tconst AND K.Revenue IS NOT NULL AND K.Budget IS NOT NULL AND K.Content_rating IS NOT NULL'
     }
@@ -30,11 +21,17 @@ db_query <- function(question) {
     return(query)
 }
 
-perform_analysis <- function(question){
-    query <- db_query(question)
+# Get a summary for question 3, used to compliment the analysis within Application.py
+perform_3<- function(){
+    # Get the correct query and use it to get the results from the database
+    query <- db_query(3)
     results <- dbGetQuery(imdb, query)
-
+    # Build a linear model with average rating as the response and season number as the explanatory variable
+    lm <- lm(Season_Num ~ Avg_rating, data=results)
+    # Print the summmary for the linear model
     print(summary(lm))
+    # Print the 95% confidence interval for all variables
+    print(confint(lm))
 }
 
 # Perform analysis specific to question 5, which is predicting revenue with multiple linear regression based on
@@ -67,5 +64,6 @@ perform_5 <- function(){
     scatterplot(Revenue~Avg_rating|Content_rating, xlab = "Average Rating", ylab = "Revenue in Millions", data = results, smooth=F, lwd=3, main="Plot of Average Rating vs Revenue grouped by Content Rating")
 }
 
+perform_3()
 perform_5()
 dbDisconnect(imdb)

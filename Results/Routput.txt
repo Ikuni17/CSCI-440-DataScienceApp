@@ -1,0 +1,71 @@
+Loading required package: DBI
+Loading required package: psych
+Loading required package: car
+
+Attaching package: 'car'
+
+The following object is masked from 'package:psych':
+
+    logit
+
+Warning messages:
+1: package 'DBI' was built under R version 3.4.2
+2: package 'psych' was built under R version 3.4.2
+3: not plotting observations with leverage one:
+  556
+4: not plotting observations with leverage one:
+  556
+Call:
+lm(formula = Season_Num ~ Avg_rating, data = results)
+
+Residuals:
+    Min      1Q  Median      3Q     Max
+-24.419  -9.903  -1.817   9.433  32.894
+
+Coefficients:
+            Estimate Std. Error t value Pr(>|t|)
+(Intercept)   8.2303     0.7979   10.31   <2e-16 ***
+Avg_rating    1.7189     0.1176   14.61   <2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 12.65 on 2602 degrees of freedom
+Multiple R-squared:  0.07583,	Adjusted R-squared:  0.07547
+F-statistic: 213.5 on 1 and 2602 DF,  p-value: < 2.2e-16
+
+               2.5 %   97.5 %
+(Intercept) 6.665688 9.794977
+Avg_rating  1.488222 1.949575
+
+Call:
+lm(formula = Revenue ~ Budget + Content_rating + Avg_rating,
+    data = results)
+
+Residuals:
+    Min      1Q  Median      3Q     Max
+-214.83  -40.36  -12.10   25.41  468.11
+
+Coefficients:
+                      Estimate Std. Error t value Pr(>|t|)
+(Intercept)         -1.189e+02  3.760e+01  -3.162  0.00165 **
+Budget               9.848e-07  5.497e-08  17.915  < 2e-16 ***
+Content_ratingNC-17 -6.834e+01  7.791e+01  -0.877  0.38076
+Content_ratingPG    -7.267e+00  2.789e+01  -0.261  0.79452
+Content_ratingPG-13 -2.234e+01  2.649e+01  -0.843  0.39947
+Content_ratingR     -3.341e+01  2.710e+01  -1.233  0.21815
+Avg_rating           2.567e+01  3.588e+00   7.154 2.58e-12 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 73.05 on 576 degrees of freedom
+Multiple R-squared:  0.4916,	Adjusted R-squared:  0.4863
+F-statistic: 92.83 on 6 and 576 DF,  p-value: < 2.2e-16
+
+                            2.5 %        97.5 %
+(Intercept)         -1.927150e+02 -4.502326e+01
+Budget               8.767952e-07  1.092725e-06
+Content_ratingNC-17 -2.213760e+02  8.468722e+01
+Content_ratingPG    -6.204644e+01  4.751208e+01
+Content_ratingPG-13 -7.436873e+01  2.969376e+01
+Content_ratingR     -8.663081e+01  1.981637e+01
+Avg_rating           1.862106e+01  3.271576e+01
