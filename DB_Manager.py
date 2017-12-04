@@ -1,7 +1,7 @@
 '''
 Sam Congdon and Bradley White
 CSCI 440: Data Science Application
-November 15, 2017
+December 3, 2017
 
 This class interacts directly with the database to perform queries for analysis
 '''

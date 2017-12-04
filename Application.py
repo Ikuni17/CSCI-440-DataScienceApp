@@ -16,11 +16,10 @@ import statistics as stats
 import statsmodels
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
+from sklearn.decomposition import PCA
 from sklearn.neural_network import MLPRegressor
 from sklearn.model_selection import KFold
-from sklearn.feature_selection import SelectKBest
-from sklearn.feature_selection import f_regression
-from sklearn.feature_selection import mutual_info_regression
+
 
 
 # Get the results from the DB for a specific question
@@ -32,14 +31,9 @@ def query_db(db, question_num):
                 'WHERE K.Tconst = G.Tconst ' \
                 'AND K.Revenue IS NOT NULL'
     elif question_num == 2:
-        query = 'SELECT DISTINCT Title_type, Is_adult, R.Avg_rating, Start_year, Runtime ' \
-                'FROM IMDB I, RATINGS R ' \
-                'WHERE I.Tconst = R.Tconst ' \
-                'AND Start_year IS NOT NULL ' \
-                'AND Runtime IS NOT NULL ' \
-                'AND Avg_rating IS NOT NULL ' \
-                'AND Title_type IS NOT NULL ' \
-                'AND Is_adult IS NOT NULL'
+        query = 'SELECT DISTINCT Avg_rating, Num_votes ' \
+                'FROM RATINGS ' \
+                'WHERE Num_votes > 0'
     elif question_num == 3:
         query = 'SELECT DISTINCT E.Season_Num, R.Avg_rating ' \
                 'FROM EPISODE E, RATINGS R ' \
@@ -121,7 +115,7 @@ def perform_1(db):
     # f, p = scipy.stats.f_oneway(genre_dict)
 
 
-# Perform analysis specific to question 2: Linear Regression of Title type vs Runtime, Rating, Year, and Is_adult
+# Perform analysis specific to question 2: Linear Regression Num Votes and Rating
 def perform_2(db):
     ''' This method analyzes how well Logistic Regression can predict a Title_type of a production.
         The prediction is performed using 4 attributes: Is_adult, R.Avg_rating, Start_year, and Runtime.
@@ -129,87 +123,43 @@ def perform_2(db):
         the latter three attributes. These heatmaps show patterns in how logistic regressions was able
         to classify the data in response to the attributes. '''
 
-    result = query_db(db, 2).fetchall()
+    '''use_transform = True
 
-    type = np.array([x[0] for x in result])
-    data = [x[1:] for x in result]
+    plt.style.use('seaborn')
+    plt.figure(figsize=(15.5, 9.5), dpi=100)
 
-    # create and train the logistic regression module
-    model = lm.LogisticRegression()
-    model.fit(data, type)
-    score = model.score(data, type)
-    # print("Model Score is: {}".format(score))
+    if use_transform:
+        slope, intercept, r, p, std_error = scipy.stats.linregress(log_num_votes, rating)
+        plt.scatter(log_num_votes, rating, label='Data')
+        plt.plot(log_num_votes, intercept + slope * log_num_votes, 'r', label="Fit, r={0}".format(r))
+    else:
+        slope, intercept, r, p, std_error = scipy.stats.linregress(num_votes, rating)
+        plt.scatter(num_votes, rating, label='Data')
+        plt.plot(num_votes, intercept + slope * num_votes, 'r', label="Fit, r={0}".format(r))
 
-    # predict the data on model
-    predicted_types = model.predict(data)
+    print(
+        "Slope: {0}\nIntercept: {1}\nr: {2}\np-value: {3}\nstd. error: {4}\n".format(slope, intercept, r, p, std_error))
+    plt.legend()
+    plt.ylabel('Avg Rating')
+    plt.title('Linear Regression for Rating vs. Number of Votes')
 
-    # create tables of each attribute
-    rating = [x[1] for x in data]
-    year = [x[2] for x in data]
-    runtime = [x[3] for x in data]
-    # create a table representing which classifications the model predicted correctly, used to create a heatmap
-    correct = [True if target == predicted else False for target, predicted in zip(type, predicted_types)]
-    df = pd.DataFrame({"Rating": rating, "Year": year, "Runtime": runtime, "Percent Correct": correct},)
+    if use_transform:
+        plt.xlabel('Log - Number of Votes')
+        plt.savefig('Results\\2-Transformed.png')
+    else:
+        plt.xlabel('Number of Votes')
+        plt.savefig('Results\\2.png')
+    plt.show()'''
 
 
-    # create the first plot, plotting each individual's Year against Rating
-    plt.figure(figsize=(14, 7))
-    plt.title('Heatmap of Correct Predictions Plotted over Rating vs. Year\nModel Score = {:.4}'.format(score))
-
-    # group the data by (y, x) axis, and the True/False values for the heatmap
-    res = df.groupby(['Year', 'Rating'])['Percent Correct'].mean().unstack()
-    # manually set the x-ticks for Ratings axis
-    xticks = np.arange(10 + 1)
-    # plot the heatmap
-    ax = seaborn.heatmap(res, linewidth=0, xticklabels=xticks, cbar_kws={'label': 'Percent of Classifications Correct'})
-    ax.set_xticks(xticks * ax.get_xlim()[1] / (10))
-    ax.invert_yaxis()
-    # label the colorbar
-    cbar = ax.collections[0].colorbar
-    cbar.set_ticks([0, .25, .50, .75, 1])
-    cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
-
-    plt.savefig('Results2-1.png')
-
-    # create the second plot, plotting each individual's Year against Runtime
-    plt.figure(figsize=(14, 7))
-    plt.title('Heatmap of Correct Predictions Plotted over Runtime vs. Year\nModel Score = {:.4}'.format(score))
-
-    res = df.groupby(['Year', 'Runtime'])['Percent Correct'].mean().unstack()
-    ax = seaborn.heatmap(res, linewidth=0, cbar_kws={'label': 'Percent of Classifications Correct'})
-    ax.invert_yaxis()
-    cbar = ax.collections[0].colorbar
-    cbar.set_ticks([0, .25, .50, .75, 1])
-    cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
-
-    plt.savefig('Results2-2.png')
-
-    # create the third plot, plotting each individual's Runtime against Rating
-    plt.figure(figsize=(14, 7))
-    plt.title('Heatmap of Correct Predictions Plotted over Rating vs. Runtime\nModel Score = {:.4}'.format(score))
-
-    res = df.groupby(['Runtime', 'Rating'])['Percent Correct'].mean().unstack()
-    xticks = np.arange(10 + 1)
-    ax = seaborn.heatmap(res, linewidth=0, xticklabels=xticks, cbar_kws={'label': 'Percent of Classifications Correct'})
-    ax.set_xticks(xticks * ax.get_xlim()[1] / (10))
-    ax.invert_yaxis()
-    cbar = ax.collections[0].colorbar
-    cbar.set_ticks([0, .25, .50, .75, 1])
-    cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
-
-    plt.savefig('Results2-3.png')
-
-# Perform analysis specific to question 3: Linear Regression on Num Seasons vs. Show Rating
+# Perform analysis specific to question 3: Num Seasons and Show Rating
 def perform_3(db):
-    ''' The method analyzes the relationship between Number of Seasons and Show Rating using logistic regression.
-        Logistic regression is used to create a line over the data points, which is then visualized through
-        plotting the line over the data points, saving the figure to Results3.png '''
-
+    # 291663 rows
     result = query_db(db, 3)
     # Convert to numpy array
     temp_vector = np.fromiter(result.fetchall(), 'i4,f')
-
     # Split into two vectors
+
     num_seasons = temp_vector['f0']
     rating = temp_vector['f1']
 
@@ -217,72 +167,25 @@ def perform_3(db):
 
     # retrieve the attributes of line fit with linear regression
     slope, intercept, r, p, std_error = scipy.stats.linregress(rating, num_seasons)
-    # plot the data on the chart
     plt.scatter(rating, num_seasons, label='Data')
-    # plot the line on the chart
-    plt.plot(rating, intercept + slope * rating, 'r', label="r = {:.5}\nLine: y = {:.3}x + {:.3}\np-value = {:.5}".format(r, slope, intercept, p))
+    plt.plot(rating, intercept + slope * rating, 'r', label="Fit, r={0}".format(r))
 
-    #print("Slope: {0}\nIntercept: {1}\nr: {2}\np-value: {3}\nstd. error: {4}\n".format(slope, intercept, r, p, std_error))
+    print(
+        "Slope: {0}\nIntercept: {1}\nr: {2}\np-value: {3}\nstd. error: {4}\n".format(slope, intercept, r, p, std_error))
     plt.legend()
-    plt.title('Linear Regression for Number of Seasons vs. Show Rating')
     plt.ylabel('Number of Seasons')
+    plt.title('Linear Regression for Number of Seasons vs. Show Rating')
+
     plt.xlabel('Show Rating')
-
-    plt.savefig('Results3.png')
-    #plt.show()
-
-
-def determine_components(data, output, labels, f_regress = False):
-    ''' Determine the order that attributes are removed through SelectKBest methods, used by perform_4'''
-
-    # if f_regression is being used
-    if f_regress:
-        # order of removal using f_regression (Univariate linear regression tests)
-        initial_values = {x: y for x, y in zip(labels, data[0])}
-        ordered_values = []
-
-        for i in reversed(range(len(data[0]))):
-            # select the k-best attributes for the data
-            new_data = SelectKBest(f_regression, k=i).fit_transform(data, output)
-            # for each remaining attribute
-            for key, value in initial_values.items():
-                # determine which attribute was not included in the new data, add it to the list
-                if value not in new_data[0]:
-                    ordered_values.insert(0, key)
-                    del initial_values[key]
-                    break
-        # print(ordered_values)
-        return ordered_values
-
-    # order of removal using mutual_info_regression (Estimate mutual information for a continuous target variable)
-    initial_values = {x: y for x, y in zip(labels, data[0])}
-    ordered_values = []
-
-    # for each possible number of remaining attributes
-    for i in reversed(range(len(data[0]))):
-        new_data = SelectKBest(mutual_info_regression, k=i).fit_transform(data, output)
-        for key, value in initial_values.items():
-            if value not in new_data[0]:
-                ordered_values.insert(0, key)
-                del initial_values[key]
-                break
-    #print(ordered_values)
-
-    return ordered_values
+    plt.savefig('Results3.pdf')
+    plt.show()
+    '''
 
 
-# Perform analysis specific to question 4: Predict Revenue using a Neural Net and Feature Selection
+# Perform analysis specific to question 4: Predict Revenue
+# Run PCA then use neural net to predict revenue
 def perform_4(db):
-    ''' This method analyzes how well a Neural Network can predict the the Revenue of a production using a varying
-        number of attributes, which are selected through feature selection. A network is initialized and trained on
-        the selected components, then tested, which is quantified with mean squared error. Each network is tested
-        using k-fold cross validation, with the avg testing error recorded over the k tests. This testing error is
-        then averaged through the number of tests run, then plotted and saved to the file Results4.png.
-
-        Note: extra plt commands were used to tune the network. They are included to show how the network was tuned,
-        however they are not being utilized in the final application. '''
-
-    # retrieve the data relevant to this question from the DataBase
+    # 642 rows, not sure if title should be considered
     result = query_db(db, 4).fetchall()
     labels = ['Revenue', 'Start_year', 'Runtime', 'Face_number', 'FB_likes', 'Rank', 'Meta_score']
 
@@ -292,12 +195,8 @@ def perform_4(db):
 
     # split into predicted value revenue and input variables data
     revenue = np.array([x[0] for x in result])
-    original_data = [x[1:] for x in result]
+    data = [x[1:] for x in result]
 
-    # get the order that attributes will be removed from the
-    ordered_labels = determine_components(original_data, revenue, labels[1:], f_regress)
-
-    # intialize the plot and the sum of the testing error
     plt.figure(figsize=(14, 7))
     plt.grid(True)
     axes = plt.gca()
@@ -306,38 +205,25 @@ def perform_4(db):
     number_of_tests = 100
     trend = {'x': [1,2,3,4,5,6], 'y': [0,0,0,0,0,0]}
 
-    # colors = {0:'k', 1:'b', 2:'g', 3:'r', 4:'c', 5:'y', 6:'m'}
-
-    # run an entire test (training/testing a network on each set of attributes) this many times
-    for j in range(number_of_tests):
+    for j in range(5):
         output = {'x': [], 'y': []}
-
-        # for each set of principle compenents
         for i in reversed(range(1, 7)):
-
-            #data = [(x[1:]) for x in result]
-            #pca = PCA(n_components=i)
-            #pca.fit(data)
-            #data = pca.transform(data)
-            kf = KFold(n_splits=10)
+            data = [(x[1:]) for x in result]
+            pca = PCA(n_components=i)
+            pca.fit(data)
+            data = pca.transform(data)
+            df = pd.DataFrame(data)
+            kf = KFold(n_splits=15)
             pca_output = []
 
-            if f_regress:
-                data = SelectKBest(f_regression, k=i).fit_transform(original_data, revenue)
-            else:
-                data = SelectKBest(mutual_info_regression, k=i).fit_transform(original_data, revenue)
-            #print(data)
-
-
-            # run a k-fold cross validation test, tracking mean squared error, on a neural net
             for train_index, test_index in kf.split(data):
                 # train the network
                 clf = MLPRegressor(alpha=0.01, hidden_layer_sizes=(100,), max_iter=50000, early_stopping=False, batch_size=100,
                                    activation='relu', solver='adam', verbose=False,
                                    learning_rate_init=0.001, learning_rate='adaptive', tol=0.000000000000000000001)
+
                 clf.fit(data[train_index], revenue[train_index])
 
-                # test the network on the test data, calculate mean squared error
                 pred_revenue = clf.predict(data[test_index])  # predict network output given input data
                 target_revenue = revenue[test_index]
                 error = [(pred_revenue[x] - target_revenue[x])**2 for x in range(len(pred_revenue))]
@@ -347,9 +233,8 @@ def perform_4(db):
                 #print('error = {}'.format(error))
 
                 pca_output += [error]
-                #plt.scatter(i, error, color=colors[j])
+                plt.scatter(i, error, color=colors[j])
 
-            # average the error of the k-folds tests over each component set
             output['y'] += [sum(pca_output) / len(pca_output)]
             output['x'] += [i]
             #print('network outputs = {}'.format(pca_output))
@@ -357,29 +242,10 @@ def perform_4(db):
             #print(output)
 
 
-        #trend['y'] = [trend['y'][x] + (output['y'][x] - output['y'][x+1]) for x in range(len(output['y'])-1)]
-        # sum the error of each test to be avered and plotted later
-        trend['y'] = [trend['y'][x] + output['y'][x] for x in range(len(output['y']))]
-        #plt.plot(output['x'], output['y'], color=colors[j])
+    trend['y'] = [(trend['y'][x] / 5) + 150000 for x in range(len(trend['y']))] + [150000]
+    plt.plot(trend['x'], trend['y'], color='m')
 
-    #trend['y'] = [(trend['y'][x] / 5) + 150000 for x in range(len(trend['y']))] + [150000]
-    # average the testing error of the network trained on each set of components over all the tests run
-    trend['y'] = [(trend['y'][x] / number_of_tests) for x in range(len(trend['y']))]
-    rects = plt.bar(trend['x'], trend['y'], color='m')
-
-    # create labels on each bar displaying the value of the average error
-    labels = [int(trend['y'][i]) for i in range(len(rects))]
-    for rect, label in zip(rects, labels):
-        height = rect.get_height()
-        plt.text(rect.get_x() + rect.get_width() / 2, height + 5, label, ha='center', va='bottom')
-
-    # label the x-axis with the ordered attributes
-    ax = plt.subplot()
-    ax.set_xticklabels(['_', ordered_labels[0]] + ['..., ' + ordered_labels[x] for x in range(1, len(ordered_labels))])
-
-    # label and format the plot
-    plt.title('Avg Prediction Error of {} Networks Trained on Varying Numbers of Attributes as Selected by Feature Selection'.format(number_of_tests))
-    plt.xlabel('Components Included in Test ({})'.format(', '.join(ordered_labels)))
+    plt.xlabel('Number of Components')
     plt.ylabel('Average Mean Square Error of Networks')
     if f_regress:
         plt.savefig('Results4 with f_regression.png')
@@ -426,5 +292,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
