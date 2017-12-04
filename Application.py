@@ -32,7 +32,7 @@ def query_db(db, question_num):
      Question 3 is determining if there is a linear relationship between the number of seasons and the average rating
      of a TV show. This is used within a linear regression model. Season numbers are limited to 50 because there are
      a few erroneous rows with 1000 seasons.
-     Question 4 is determining the features with the most influence on revenue through PCA. These features are then used
+     Question 4 is determining the features with the most influence on revenue through FeatureSelection. These features are then used
      to build a neural network and predict revenue.
      Question 5 is a different approach to predicting revenue. The variables are used within a Multiple Linear
      Regression model, with content-rating as an indicator variable.
@@ -201,6 +201,7 @@ def perform_2(db):
     correct = [True if target == predicted else False for target, predicted in zip(type, predicted_types)]
     df = pd.DataFrame({"Rating": rating, "Year": year, "Runtime": runtime, "Percent Correct": correct}, )
 
+
     # create the first plot, plotting each individual's Year against Rating
     plt.figure(figsize=(14, 7))
     plt.title('Heatmap of Correct Predictions Plotted over Rating vs. Year\nModel Score = {:.4}'.format(score))
@@ -218,7 +219,7 @@ def perform_2(db):
     cbar.set_ticks([0, .25, .50, .75, 1])
     cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
 
-    plt.savefig('Results2-1.png')
+    plt.savefig('Results/Results2-1.png')
 
     # create the second plot, plotting each individual's Year against Runtime
     plt.figure(figsize=(14, 7))
@@ -231,7 +232,7 @@ def perform_2(db):
     cbar.set_ticks([0, .25, .50, .75, 1])
     cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
 
-    plt.savefig('Results2-2.png')
+    plt.savefig('Results/Results2-2.png')
 
     # create the third plot, plotting each individual's Runtime against Rating
     plt.figure(figsize=(14, 7))
@@ -246,7 +247,7 @@ def perform_2(db):
     cbar.set_ticks([0, .25, .50, .75, 1])
     cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
 
-    plt.savefig('Results2-3.png')
+    plt.savefig('Results/Results2-3.png')
 
 
 # Perform analysis specific to question 3: Linear Regression on Num Seasons vs. Show Rating
@@ -279,8 +280,8 @@ def perform_3(db):
     plt.ylabel('Number of Seasons')
     plt.xlabel('Show Rating')
 
-    plt.savefig('Results3.png')
-    # plt.show()
+    plt.savefig('Results/Results3.png')
+    #plt.show()
 
 
 def determine_components(data, output, labels, f_regress=False):
@@ -379,6 +380,7 @@ def perform_4(db):
                 data = SelectKBest(mutual_info_regression, k=i).fit_transform(original_data, revenue)
             # print(data)
 
+
             # run a k-fold cross validation test, tracking mean squared error, on a neural net
             for train_index, test_index in kf.split(data):
                 # train the network
@@ -434,9 +436,9 @@ def perform_4(db):
     plt.xlabel('Components Included in Test ({})'.format(', '.join(ordered_labels)))
     plt.ylabel('Average Mean Square Error of Networks')
     if f_regress:
-        plt.savefig('Results4 with f_regression.png')
+        plt.savefig('Results/Results4 with f_regression.png')
     else:
-        plt.savefig('Results4.png')
+        plt.savefig('Results/Results4.png')
     # plt.show()
 
 
@@ -466,3 +468,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
