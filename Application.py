@@ -154,7 +154,7 @@ def perform_1(db):
     plt.ylabel("Genres")
     plt.xlabel("Mean Revenue (Millions USD)")
     plt.title("Top 10 Genres by Mean Revenue")
-    plt.savefig('Results\\1-Top10.png')
+    plt.savefig('Results\\1-Top10.pdf')
 
     # Create a bar graph with all genres
     plt.style.use('seaborn')
@@ -165,7 +165,7 @@ def perform_1(db):
     plt.ylabel("Mean Revenue (Millions USD)")
     plt.title("Mean Revenue per Genre")
     plt.text(2, 320, 'F={0}, p-value={1}'.format(f, p))
-    plt.savefig('Results\\1-AllGenres.png')
+    plt.savefig('Results\\1-AllGenres.pdf')
     # plt.show()
 
 
