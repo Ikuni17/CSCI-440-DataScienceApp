@@ -21,6 +21,8 @@ from sklearn.model_selection import KFold
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import f_regression
 from sklearn.feature_selection import mutual_info_regression
+import subprocess as sub
+
 
 # Get the results from the DB for a specific question
 def query_db(db, question_num):
@@ -147,7 +149,6 @@ def perform_1(db):
         top_10_genres.append(','.join(temp))
         top_10_means.append(x[1])
 
-
     # Create a horizontal bar graph with the top ten mean revenues
     plt.style.use('seaborn')
     plt.figure(figsize=(20, 11.5), dpi=100)
@@ -167,7 +168,8 @@ def perform_1(db):
     plt.title("Mean Revenue per Genre")
     plt.text(2, 320, 'F={0}, p-value={1}'.format(f, p))
     plt.savefig('Results\\1-AllGenres.png')
-    #plt.show()
+    # plt.show()
+
 
 # Perform analysis specific to question 2: Linear Regression of Title type vs Runtime, Rating, Year, and Is_adult
 def perform_2(db):
@@ -197,8 +199,7 @@ def perform_2(db):
     runtime = [x[3] for x in data]
     # create a table representing which classifications the model predicted correctly, used to create a heatmap
     correct = [True if target == predicted else False for target, predicted in zip(type, predicted_types)]
-    df = pd.DataFrame({"Rating": rating, "Year": year, "Runtime": runtime, "Percent Correct": correct},)
-
+    df = pd.DataFrame({"Rating": rating, "Year": year, "Runtime": runtime, "Percent Correct": correct}, )
 
     # create the first plot, plotting each individual's Year against Rating
     plt.figure(figsize=(14, 7))
@@ -247,6 +248,7 @@ def perform_2(db):
 
     plt.savefig('Results2-3.png')
 
+
 # Perform analysis specific to question 3: Linear Regression on Num Seasons vs. Show Rating
 def perform_3(db):
     ''' The method analyzes the relationship between Number of Seasons and Show Rating using logistic regression.
@@ -268,19 +270,20 @@ def perform_3(db):
     # plot the data on the chart
     plt.scatter(rating, num_seasons, label='Data')
     # plot the line on the chart
-    plt.plot(rating, intercept + slope * rating, 'r', label="r = {:.5}\nLine: y = {:.3}x + {:.3}\np-value = {:.5}".format(r, slope, intercept, p))
+    plt.plot(rating, intercept + slope * rating, 'r',
+             label="r = {:.5}\nLine: y = {:.3}x + {:.3}\np-value = {:.5}".format(r, slope, intercept, p))
 
-    #print("Slope: {0}\nIntercept: {1}\nr: {2}\np-value: {3}\nstd. error: {4}\n".format(slope, intercept, r, p, std_error))
+    # print("Slope: {0}\nIntercept: {1}\nr: {2}\np-value: {3}\nstd. error: {4}\n".format(slope, intercept, r, p, std_error))
     plt.legend()
     plt.title('Linear Regression for Number of Seasons vs. Show Rating')
     plt.ylabel('Number of Seasons')
     plt.xlabel('Show Rating')
 
     plt.savefig('Results3.png')
-    #plt.show()
+    # plt.show()
 
 
-def determine_components(data, output, labels, f_regress = False):
+def determine_components(data, output, labels, f_regress=False):
     ''' Determine the order that attributes are removed through SelectKBest methods, used by perform_4'''
 
     # if f_regression is being used
@@ -314,7 +317,7 @@ def determine_components(data, output, labels, f_regress = False):
                 ordered_values.insert(0, key)
                 del initial_values[key]
                 break
-    #print(ordered_values)
+    # print(ordered_values)
 
     return ordered_values
 
@@ -349,10 +352,10 @@ def perform_4(db):
     plt.figure(figsize=(14, 7))
     plt.grid(True)
     axes = plt.gca()
-    #axes.set_xlim([0, 7])
-    #axes.set_ylim([0, 250000])
+    # axes.set_xlim([0, 7])
+    # axes.set_ylim([0, 250000])
     number_of_tests = 100
-    trend = {'x': [1,2,3,4,5,6], 'y': [0,0,0,0,0,0]}
+    trend = {'x': [1, 2, 3, 4, 5, 6], 'y': [0, 0, 0, 0, 0, 0]}
 
     # colors = {0:'k', 1:'b', 2:'g', 3:'r', 4:'c', 5:'y', 6:'m'}
 
@@ -363,10 +366,10 @@ def perform_4(db):
         # for each set of principle compenents
         for i in reversed(range(1, 7)):
 
-            #data = [(x[1:]) for x in result]
-            #pca = PCA(n_components=i)
-            #pca.fit(data)
-            #data = pca.transform(data)
+            # data = [(x[1:]) for x in result]
+            # pca = PCA(n_components=i)
+            # pca.fit(data)
+            # data = pca.transform(data)
             kf = KFold(n_splits=10)
             pca_output = []
 
@@ -374,13 +377,13 @@ def perform_4(db):
                 data = SelectKBest(f_regression, k=i).fit_transform(original_data, revenue)
             else:
                 data = SelectKBest(mutual_info_regression, k=i).fit_transform(original_data, revenue)
-            #print(data)
-
+            # print(data)
 
             # run a k-fold cross validation test, tracking mean squared error, on a neural net
             for train_index, test_index in kf.split(data):
                 # train the network
-                clf = MLPRegressor(alpha=0.01, hidden_layer_sizes=(100,), max_iter=50000, early_stopping=False, batch_size=100,
+                clf = MLPRegressor(alpha=0.01, hidden_layer_sizes=(100,), max_iter=50000, early_stopping=False,
+                                   batch_size=100,
                                    activation='relu', solver='adam', verbose=False,
                                    learning_rate_init=0.001, learning_rate='adaptive', tol=0.000000000000000000001)
                 clf.fit(data[train_index], revenue[train_index])
@@ -388,29 +391,28 @@ def perform_4(db):
                 # test the network on the test data, calculate mean squared error
                 pred_revenue = clf.predict(data[test_index])  # predict network output given input data
                 target_revenue = revenue[test_index]
-                error = [(pred_revenue[x] - target_revenue[x])**2 for x in range(len(pred_revenue))]
+                error = [(pred_revenue[x] - target_revenue[x]) ** 2 for x in range(len(pred_revenue))]
                 error = sum(error) / len(error)
-                #print("predicted rev = {}".format(pred_revenue))
-                #print('target rev = {}'.format(target_revenue))
-                #print('error = {}'.format(error))
+                # print("predicted rev = {}".format(pred_revenue))
+                # print('target rev = {}'.format(target_revenue))
+                # print('error = {}'.format(error))
 
                 pca_output += [error]
-                #plt.scatter(i, error, color=colors[j])
+                # plt.scatter(i, error, color=colors[j])
 
             # average the error of the k-folds tests over each component set
             output['y'] += [sum(pca_output) / len(pca_output)]
             output['x'] += [i]
-            #print('network outputs = {}'.format(pca_output))
-            #print('avg error of folds = {}'.format(sum(pca_output) / len(pca_output)))
-            #print(output)
+            # print('network outputs = {}'.format(pca_output))
+            # print('avg error of folds = {}'.format(sum(pca_output) / len(pca_output)))
+            # print(output)
 
-
-        #trend['y'] = [trend['y'][x] + (output['y'][x] - output['y'][x+1]) for x in range(len(output['y'])-1)]
+        # trend['y'] = [trend['y'][x] + (output['y'][x] - output['y'][x+1]) for x in range(len(output['y'])-1)]
         # sum the error of each test to be avered and plotted later
         trend['y'] = [trend['y'][x] + output['y'][x] for x in range(len(output['y']))]
-        #plt.plot(output['x'], output['y'], color=colors[j])
+        # plt.plot(output['x'], output['y'], color=colors[j])
 
-    #trend['y'] = [(trend['y'][x] / 5) + 150000 for x in range(len(trend['y']))] + [150000]
+    # trend['y'] = [(trend['y'][x] / 5) + 150000 for x in range(len(trend['y']))] + [150000]
     # average the testing error of the network trained on each set of components over all the tests run
     trend['y'] = [(trend['y'][x] / number_of_tests) for x in range(len(trend['y']))]
     rects = plt.bar(trend['x'], trend['y'], color='m')
@@ -426,33 +428,21 @@ def perform_4(db):
     ax.set_xticklabels(['_', ordered_labels[0]] + ['..., ' + ordered_labels[x] for x in range(1, len(ordered_labels))])
 
     # label and format the plot
-    plt.title('Avg Prediction Error of {} Networks Trained on Varying Numbers of Attributes as Selected by Feature Selection'.format(number_of_tests))
+    plt.title(
+        'Avg Prediction Error of {} Networks Trained on Varying Numbers of Attributes as Selected by Feature Selection'.format(
+            number_of_tests))
     plt.xlabel('Components Included in Test ({})'.format(', '.join(ordered_labels)))
     plt.ylabel('Average Mean Square Error of Networks')
     if f_regress:
         plt.savefig('Results4 with f_regression.png')
     else:
         plt.savefig('Results4.png')
-    #plt.show()
+    # plt.show()
 
 
-# Perform analysis specific to question 5: Predict Revenue
-# do multiple linear regression to predict revenue using
-# sam don't work on 5
+# Perform analysis specific to question 5: Predict Revenue with Multiple Linear Regression in R.
 def perform_5(db):
-    result = query_db(db, 5).fetchall()
-
-    revenue = np.array([x[0] for x in result])
-    data = [x[1:] for x in result]
-
-    ratings = np.unique([x[1] for x in data])
-    encoded = {ratings[i]: '00000' for i in range(len(ratings))}
-
-    df = pd.DataFrame({'rating': ratings})
-    print(pd.get_dummies(df))
-
-    clf = lm.LinearRegression()
-    clf.fit(data, revenue)
+    sub.Popen([r"C:\Program Files\R\R-3.4.1\bin\x64\Rscript.exe", r".\Application.R"])
 
 
 def main():
@@ -467,7 +457,7 @@ def main():
     # Create a database manager based on the path
     db = DB_Manager.DBManager(path)
 
-    perform_2(db)
+    perform_5(db)
 
     # Close the database connection cleanly
     db.close_connection()
@@ -475,5 +465,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
