@@ -20,6 +20,10 @@ from sklearn.decomposition import PCA
 from sklearn.neural_network import MLPRegressor
 from sklearn.model_selection import KFold
 
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import chi2
+from sklearn.feature_selection import f_regression
+from sklearn.feature_selection import mutual_info_regression
 
 
 # Get the results from the DB for a specific question
@@ -63,12 +67,13 @@ def query_db(db, question_num):
                 "AND K.Budget IS NOT NULL " \
                 "AND K.Content_rating IS NOT NULL"
     elif question_num == 6:
-        query = 'SELECT DISTINCT Is_adult, R.Avg_rating, Start_year, Runtime ' \
+        query = 'SELECT DISTINCT Title_type, Is_adult, R.Avg_rating, Start_year, Runtime ' \
                 'FROM IMDB I, RATINGS R ' \
                 'WHERE I.Tconst = R.Tconst ' \
                 'AND Start_year IS NOT NULL ' \
                 'AND Runtime IS NOT NULL ' \
                 'AND Avg_rating IS NOT NULL ' \
+                'AND Title_type IS NOT NULL ' \
                 'AND Is_adult IS NOT NULL'
 
 
@@ -211,44 +216,109 @@ def perform_3(db):
     plt.show()
     '''
 
+def determine_components(data, output, labels, f_regress = False):
+    ''' Determine the order that attributes are removed through SelectKBest methods'''
+
+    # order of removal using mutual_info_regression (Estimate mutual information for a continuous target variable)
+    initial_values = {x: y for x, y in zip(labels, data[0])}
+    ordered_values = []
+
+    # for each possible number of remaining attributes
+    for i in reversed(range(len(data[0]))):
+        # select the k-best attributes for the data
+        new_data = SelectKBest(mutual_info_regression, k=i).fit_transform(data, output)
+        # for each remaining attribute
+        for key, value in initial_values.items():
+            # determine which attribute was not included in the new data, add it to the list
+            if value not in new_data[0]:
+                ordered_values.insert(0, key)
+                del initial_values[key]
+                break
+    #print(ordered_values)
+
+    if f_regress:
+        # order of removal using f_regression (Univariate linear regression tests)
+        initial_values = {x: y for x, y in zip(labels, data[0])}
+        ordered_values = []
+
+        for i in reversed(range(len(data[0]))):
+            new_data = SelectKBest(f_regression, k=i).fit_transform(data, output)
+            for key, value in initial_values.items():
+                if value not in new_data[0]:
+                    ordered_values.insert(0, key)
+                    del initial_values[key]
+                    break
+        #print(ordered_values)
+        return ordered_values
+
+    return ordered_values
+
 
 # Perform analysis specific to question 4: Predict Revenue
 # Run PCA then use neural net to predict revenue
 def perform_4(db):
-    # 642 rows, not sure if title should be considered
+    ''' This method analyzes how well a Neural Network can predict the the Revenue of a production using a varying
+        number of attributes, which are selected through PCA. A network is initialized and trained on the selected
+        components, then tested, which is quantified with mean squared error. Each network is tested using k-fold
+        cross validation, with the avg testing error recorded over the k tests. This testing error is then averaged
+        through the number of tests run, then plotted and saved to the file Results4.1.png.
+
+        Note: extra plt commands were used to tune the network. They are included to show how the network was tuned,
+        however they are not being utilized in the final application. '''
+
+    #retrieve the data relevant to this question from the DataBase
     result = query_db(db, 4).fetchall()
-    #TODO add learning curve for machine, create single line of average error over PCA reduction on network
+    labels = ['Revenue', 'Start_year', 'Runtime', 'Face_number', 'FB_likes', 'Rank', 'Meta_score']
+    f_regress = False
 
     # split into predicted value revenue and input variables data
-    colors = {0:'k', 1:'b', 2:'g', 3:'r', 4:'c', 5:'y', 6:'m'}
     revenue = np.array([x[0] for x in result])
-    data = [x[1:] for x in result]
+    original_data = [x[1:] for x in result]
 
+    # get the order that attributes will be removed from the
+    ordered_labels = determine_components(original_data, revenue, labels[1:], f_regress)
+
+    # intialize the plot and the sum of the testing error
     plt.figure(figsize=(14, 7))
     plt.grid(True)
     axes = plt.gca()
-    axes.set_xlim([0, 7])
-    axes.set_ylim([0, 250000])
+    #axes.set_xlim([0, 7])
+    #axes.set_ylim([0, 250000])
+    number_of_tests = 100
     trend = {'x': [1,2,3,4,5,6], 'y': [0,0,0,0,0,0]}
 
-    for j in range(5):
+    # colors = {0:'k', 1:'b', 2:'g', 3:'r', 4:'c', 5:'y', 6:'m'}
+
+    # run an entire test (training/testing a network on each set of attributes) this many times
+    for j in range(number_of_tests):
         output = {'x': [], 'y': []}
+
+        # for each set of principle compenents
         for i in reversed(range(1, 7)):
-            data = [(x[1:]) for x in result]
-            pca = PCA(n_components=i)
-            pca.fit(data)
-            data = pca.transform(data)
-            df = pd.DataFrame(data)
-            kf = KFold(n_splits=15)
+
+            #data = [(x[1:]) for x in result]
+            #pca = PCA(n_components=i)
+            #pca.fit(data)
+            #data = pca.transform(data)
+            kf = KFold(n_splits=10)
             pca_output = []
 
+            if f_regress:
+                data = SelectKBest(f_regression, k=i).fit_transform(original_data, revenue)
+            else:
+                data = SelectKBest(mutual_info_regression, k=i).fit_transform(original_data, revenue)
+            #print(data)
+
+
+            # run a k-fold cross validation test, tracking mean squared error, on a neural net
             for train_index, test_index in kf.split(data):
+                # train the network
                 clf = MLPRegressor(alpha=0.01, hidden_layer_sizes=(100,), max_iter=50000, early_stopping=False, batch_size=100,
                                    activation='relu', solver='adam', verbose=False,
                                    learning_rate_init=0.001, learning_rate='adaptive', tol=0.000000000000000000001)
-
                 clf.fit(data[train_index], revenue[train_index])
 
+                # test the network on the test data, calculate mean squared error
                 pred_revenue = clf.predict(data[test_index])  # predict network output given input data
                 target_revenue = revenue[test_index]
                 error = [(pred_revenue[x] - target_revenue[x])**2 for x in range(len(pred_revenue))]
@@ -258,98 +328,39 @@ def perform_4(db):
                 #print('error = {}'.format(error))
 
                 pca_output += [error]
-                plt.scatter(i, error, color=colors[j])
+                #plt.scatter(i, error, color=colors[j])
 
+            # average the error of the k-folds tests over each component set
             output['y'] += [sum(pca_output) / len(pca_output)]
             output['x'] += [i]
             #print('network outputs = {}'.format(pca_output))
             #print('avg error of folds = {}'.format(sum(pca_output) / len(pca_output)))
             #print(output)
 
-        trend['y'] = [trend['y'][x] + (output['y'][x] - output['y'][x+1]) for x in range(len(output['y'])-1)]
-        plt.plot(output['x'], output['y'], color=colors[j])
 
-    trend['y'] = [(trend['y'][x] / 5) + 150000 for x in range(len(trend['y']))] + [150000]
-    plt.plot(trend['x'], trend['y'], color='m')
+        #trend['y'] = [trend['y'][x] + (output['y'][x] - output['y'][x+1]) for x in range(len(output['y'])-1)]
+        # sum the error of each test to be avered and plotted later
+        trend['y'] = [trend['y'][x] + output['y'][x] for x in range(len(output['y']))]
+        #plt.plot(output['x'], output['y'], color=colors[j])
 
-    plt.xlabel('Number of Components')
+    #trend['y'] = [(trend['y'][x] / 5) + 150000 for x in range(len(trend['y']))] + [150000]
+    # average the testing error of the network trained on each set of components over all the tests run
+    trend['y'] = [(trend['y'][x] / number_of_tests) for x in range(len(trend['y']))]
+    plt.bar(trend['x'], trend['y'], color='m')
+
+    # label the x-axis with the ordered attributes
+    ax = plt.subplot()
+    ax.set_xticklabels(['_', ordered_labels[0]] + ['..., ' + ordered_labels[x] for x in range(1, len(ordered_labels))])
+
+    # label and format the plot
+    plt.title('Avg Prediction Error of {} Networks Trained on Varying Numbers of Attributes as Selected by Feature Selection'.format(number_of_tests))
+    plt.xlabel('Components Included in Test ({})'.format(', '.join(ordered_labels)))
     plt.ylabel('Average Mean Square Error of Networks')
-    plt.legend()
-    plt.savefig('Results4Linear.png')
+    if f_regress:
+        plt.savefig('Results4 with f_regression.png')
+    else:
+        plt.savefig('Results4 with mutual_info_regression.png')
     plt.show()
-    return
-
-    '''
-    #best lines come from PCA of 5,6,4
-    # loop to compare the linear regression over the different number of PCA components used
-    for i in reversed(range(1, 7)):
-        data = [(x[1:]) for x in result]
-        pca = PCA(n_components=i)
-        pca.fit(data)
-        data = pca.transform(data)
-        df = pd.DataFrame(data)
-
-        clf = MLPRegressor(alpha=0.01, hidden_layer_sizes=(100,), max_iter=50000, early_stopping=False, batch_size=100,
-                       activation='relu', solver='adam', verbose=True,
-                       learning_rate_init=0.001, learning_rate='adaptive', tol=0.000000000000000000001)
-        clf.fit(df, revenue)
-        pred_revenue = clf.predict(data)  # predict network output given input data
-        revenue = np.array(revenue)
-        slope, intercept, r, p, std_error = scipy.stats.linregress(revenue, pred_revenue)
-        plt.plot(revenue, intercept + slope * revenue, colors[i], label="Fit, r={}, slope = {}".format(r, slope))
-
-    plt.xlabel('Acutal Revenue (in Millions)')
-    plt.ylabel('Predicted Revenue (in Millions)')
-    plt.legend()
-    plt.savefig('Results5Linear.png')
-    plt.show()
-    return
-    '''
-
-    # create and train network
-    clf = MLPRegressor(alpha=0.01, hidden_layer_sizes=(10,), max_iter=50000, early_stopping=False, batch_size=100,
-                       activation='relu',  solver='adam', verbose=True,
-                       learning_rate_init=0.001, learning_rate='adaptive', tol=0.000000000000000000001)
-    clf.fit(df, revenue)
-
-
-    pred_revenue = clf.predict(data)  # predict network output given input data
-    plt.scatter(revenue, pred_revenue)  # plot network output vs target output
-    plt.xlabel('Acutal Revenue (in Millions)')
-    plt.ylabel('Predicted Revenue (in Millions)')
-
-    # create a linear regression line, ideal fit has slope == 1
-    revenue = np.array(revenue)
-    slope, intercept, r, p, std_error = scipy.stats.linregress(revenue, pred_revenue)
-    plt.plot(revenue, intercept + slope * revenue, 'r', label="Fit, r={}, slope = {}".format(r, slope))
-
-    plt.legend()
-    plt.savefig('Results5Linear.png')
-    plt.show()
-
-    '''
-    pca = PCA()
-    pca.fit(result)
-    print(pca.explained_variance_)
-    print(pca.explained_variance_ratio_)
-
-    pca = PCA()
-    pca.fit(result)
-    print(pca.explained_variance_ratio_)
-    plt.plot(np.cumsum(pca.explained_variance_ratio_))
-    plt.xlabel('number of components')
-    plt.ylabel('cumulative explained variance')
-    plt.savefig('Results4.png')
-    plt.show()
-    '''
-    #pca = PCA(n_components=7)
-    #pca.fit(result)
-    #print(pca.explained_variance_)
-
-    #X_pca = pca.transform(result)
-    #print("original shape:   ", len(result[0]))
-    #print("transformed shape:", X_pca.shape)
-
 
 # Perform analysis specific to question 5: Predict Revenue
 # do multiple linear regression to predict revenue using
@@ -370,19 +381,103 @@ def perform_5(db):
     clf.fit(data, revenue)
 
 def perform_6(db):
-    # TODO predict the title type, requires one-hot encoding
+    ''' This method analyzes how well Logistic Regression can predict a Title_type of a production.
+        The prediction is performed using 4 attributes: Is_adult, R.Avg_rating, Start_year, and Runtime.
+        The results of the predictions are recorded in three heat maps, plotted against combination of
+        the latter three attributes. These heatmaps show patterns in how logistic regressions was able
+        to classify the data in response to the attributes. '''
+
     result = query_db(db, 6).fetchall()
 
+    type = np.array([x[0] for x in result])
+    data = [x[1:] for x in result]
+
+    # create and train the logistic regression module
+    model = lm.LogisticRegression()
+    model.fit(data, type)
+    # print("Model Score is: {}".format(model.score(df, type)))
+
+    # predict the data on model
+    predicted_types = model.predict(data)
+
+    # create tables of each attribute
+    rating = [x[1] for x in data]
+    year = [x[2] for x in data]
+    runtime = [x[3] for x in data]
+    # create a table representing which classifications the model predicted correctly, used to create a heatmap
+    correct = [True if target == predicted else False for target, predicted in zip(type, predicted_types)]
+    df = pd.DataFrame({"Rating": rating, "Year": year, "Runtime": runtime, "Percent Correct": correct})
+
+
+    # create the first plot, plotting each individual's Year against Rating
+    plt.figure(figsize=(14, 7))
+
+    # group the data by (y, x) axis, and the True/False values for the heatmap
+    res = df.groupby(['Year', 'Rating'])['Percent Correct'].mean().unstack()
+    # manually set the x-ticks for Ratings axis
+    xticks = np.arange(10 + 1)
+    # plot the heatmap
+    ax = seaborn.heatmap(res, linewidth=0, xticklabels=xticks, cbar_kws={'label': 'Percent of Classifications Correct'})
+    ax.set_xticks(xticks * ax.get_xlim()[1] / (10))
+    ax.invert_yaxis()
+    # label the colorbar
+    cbar = ax.collections[0].colorbar
+    cbar.set_ticks([0, .25, .50, .75, 1])
+    cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
+
+    plt.savefig('Results6-1.png')
+
+    # create the second plot, plotting each individual's Year against Runtime
+    plt.figure(figsize=(14, 7))
+
+    res = df.groupby(['Year', 'Runtime'])['Percent Correct'].mean().unstack()
+    ax = seaborn.heatmap(res, linewidth=0, cbar_kws={'label': 'Percent of Classifications Correct'})
+    ax.invert_yaxis()
+    cbar = ax.collections[0].colorbar
+    cbar.set_ticks([0, .25, .50, .75, 1])
+    cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
+
+    plt.savefig('Results6-2.png')
+
+    # create the third plot, plotting each individual's Runtime against Rating
+    plt.figure(figsize=(14, 7))
+
+    res = df.groupby(['Runtime', 'Rating'])['Percent Correct'].mean().unstack()
+    xticks = np.arange(10 + 1)
+    ax = seaborn.heatmap(res, linewidth=0, xticklabels=xticks, cbar_kws={'label': 'Percent of Classifications Correct'})
+    ax.set_xticks(xticks * ax.get_xlim()[1] / (10))
+    ax.invert_yaxis()
+    cbar = ax.collections[0].colorbar
+    cbar.set_ticks([0, .25, .50, .75, 1])
+    cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
+
+    plt.savefig('Results6-3.png')
+
+    return
+
+    encoded_colors = ['k' if target == predicted else 'r' for target, predicted in zip(type, predicted_types)]
+    #plt.plot(type, model.predict(data))
+    #plt.scatter()
+    plt.scatter([x[1] for x in data], [x[2] for x in data], [x[3]/4 for x in data], alpha=0.5, c=encoded_colors)
+    # plt.plot(data, model.predict(df), color='r')
+
+    plt.legend()
+    plt.ylabel('Year')
+    plt.xlabel('Rating')
+    plt.savefig('Results6.png')
+    plt.show()
+
+
+
+    return
     #print(np.unique([x[0] for x in result]))
 
     type = np.array([x[0] for x in result])
     data = [x[1:] for x in result]
 
-    df = pd.DataFrame(data)
+    #df = pd.DataFrame(data)
     model = lm.LogisticRegression()
-    model.fit(df, type)
-
-    print("Model Score is: {}".format(model.score(df, type)))
+    model.fit(data, type)
 
 
 
@@ -390,7 +485,7 @@ def perform_6(db):
     #plt.plot(data, model.predict(df), color='r')
 
     plt.figure(figsize=(14, 7))
-    print('mean = {}'.format(stats.mean([int(x) for x in type])))
+    #print('mean = {}'.format(stats.mean([int(x) for x in type])))
     #Is_adult, R.Avg_rating, Start_year, Runtime
     encoded_colors = ['k' if x==0 else 'c' for x in type]
     plt.scatter([x[0] for x in data], [x[1] for x in data], s=[x[2]/2 for x in data] ,alpha=0.4, c=encoded_colors)
@@ -401,8 +496,6 @@ def perform_6(db):
     plt.xlabel('Is Adult')
     plt.savefig('Results6.png')
     plt.show()
-
-
 
 
 def main():
@@ -417,7 +510,7 @@ def main():
     # Create a database manager based on the path
     db = DB_Manager.DBManager(path)
 
-    perform_1(db)
+    perform_3(db)
 
     # Close the database connection cleanly
     db.close_connection()
@@ -425,3 +518,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
