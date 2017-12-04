@@ -119,11 +119,11 @@ def perform_1(db):
     print("F stat: {0}".format(f))
     print("p-value: {0}".format(p))
 
-    # Create two vectors for plotting
     means = []
     genres = []
     mean_dict = {}
 
+    # Split the dictionary into two vectors for plotting, additionally post-process to find the Top 10
     for k, v in genre_dict.items():
         # Convert the sets to strings to remove printing frozen({...})
         temp = list(k)
@@ -134,38 +134,42 @@ def perform_1(db):
         means.append(temp_mean)
         mean_dict[k] = temp_mean
 
+    # Sort the dictionary by revenue, ascending, sorted returns a list of tuples with the structure: [(Genre, Revenue)]
     mean_dict = sorted(mean_dict.items(), key=lambda x: x[1])
 
+    # Slice the top 10 from the end
     mean_dict = mean_dict[-10:]
+    # Split into two vectors for plotting
     top_10_genres = []
     top_10_means = []
     for x in mean_dict:
+        # Convert the sets to strings to remove printing frozen({...})
         temp = list(x[0])
         temp.sort()
         top_10_genres.append(','.join(temp))
         top_10_means.append(x[1])
 
 
-    #print(top_10_genres)
-    #print(top_10_means)
+    # Create a horizontal bar graph with the top ten mean revenues
+    plt.style.use('seaborn')
     plt.figure(figsize=(20, 11.5), dpi=100)
     plt.barh(top_10_genres, top_10_means, align="center")
-    #plt.xticks(rotation='vertical')
-    plt.savefig('Results\\1.png')
-    plt.show()
-    # Create and plot with a bargraph
-    '''plt.style.use('seaborn')
+    plt.ylabel("Genres")
+    plt.xlabel("Mean Revenue (Millions USD)")
+    plt.title("Top 10 Genres by Mean Revenue")
+    plt.savefig('Results\\1-Top10.png')
+
+    # Create a bar graph with all genres
+    plt.style.use('seaborn')
     plt.figure(figsize=(15.5, 9.5), dpi=100)
     plt.bar(genres, means, align="center")
-    #plt.xticks(rotation='vertical')
     plt.tick_params(labelbottom='off')
-
     plt.xlabel("Genres")
     plt.ylabel("Mean Revenue (Millions USD)")
     plt.title("Mean Revenue per Genre")
     plt.text(2, 320, 'F={0}, p-value={1}'.format(f, p))
     plt.savefig('Results\\1.png')
-    plt.show()'''
+    #plt.show()
 
 
 # Perform analysis specific to question 2: Linear Regression Num Votes and Rating
