@@ -122,6 +122,7 @@ def perform_1(db):
     # Create two vectors for plotting
     means = []
     genres = []
+    mean_dict = {}
 
     for k, v in genre_dict.items():
         # Convert the sets to strings to remove printing frozen({...})
@@ -129,10 +130,31 @@ def perform_1(db):
         temp.sort()
         genres.append(','.join(temp))
         # Calculate the mean for this genre
-        means.append(stats.mean(v))
+        temp_mean = stats.mean(v)
+        means.append(temp_mean)
+        mean_dict[k] = temp_mean
 
+    mean_dict = sorted(mean_dict.items(), key=lambda x: x[1])
+
+    mean_dict = mean_dict[-10:]
+    top_10_genres = []
+    top_10_means = []
+    for x in mean_dict:
+        temp = list(x[0])
+        temp.sort()
+        top_10_genres.append(','.join(temp))
+        top_10_means.append(x[1])
+
+
+    #print(top_10_genres)
+    #print(top_10_means)
+    plt.figure(figsize=(20, 11.5), dpi=100)
+    plt.barh(top_10_genres, top_10_means, align="center")
+    #plt.xticks(rotation='vertical')
+    plt.savefig('Results\\1.png')
+    plt.show()
     # Create and plot with a bargraph
-    plt.style.use('seaborn')
+    '''plt.style.use('seaborn')
     plt.figure(figsize=(15.5, 9.5), dpi=100)
     plt.bar(genres, means, align="center")
     #plt.xticks(rotation='vertical')
@@ -140,7 +162,11 @@ def perform_1(db):
 
     plt.xlabel("Genres")
     plt.ylabel("Mean Revenue (Millions USD)")
-    plt.show()
+    plt.title("Mean Revenue per Genre")
+    plt.text(2, 320, 'F={0}, p-value={1}'.format(f, p))
+    plt.savefig('Results\\1.png')
+    plt.show()'''
+
 
 # Perform analysis specific to question 2: Linear Regression Num Votes and Rating
 def perform_2(db):
