@@ -16,12 +16,9 @@ import statistics as stats
 import statsmodels
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
-from sklearn.decomposition import PCA
 from sklearn.neural_network import MLPRegressor
 from sklearn.model_selection import KFold
-
 from sklearn.feature_selection import SelectKBest
-from sklearn.feature_selection import chi2
 from sklearn.feature_selection import f_regression
 from sklearn.feature_selection import mutual_info_regression
 
@@ -35,9 +32,14 @@ def query_db(db, question_num):
                 'WHERE K.Tconst = G.Tconst ' \
                 'AND K.Revenue IS NOT NULL'
     elif question_num == 2:
-        query = 'SELECT DISTINCT Avg_rating, Num_votes ' \
-                'FROM RATINGS ' \
-                'WHERE Num_votes > 0'
+        query = 'SELECT DISTINCT Title_type, Is_adult, R.Avg_rating, Start_year, Runtime ' \
+                'FROM IMDB I, RATINGS R ' \
+                'WHERE I.Tconst = R.Tconst ' \
+                'AND Start_year IS NOT NULL ' \
+                'AND Runtime IS NOT NULL ' \
+                'AND Avg_rating IS NOT NULL ' \
+                'AND Title_type IS NOT NULL ' \
+                'AND Is_adult IS NOT NULL'
     elif question_num == 3:
         query = 'SELECT DISTINCT E.Season_Num, R.Avg_rating ' \
                 'FROM EPISODE E, RATINGS R ' \
@@ -66,16 +68,6 @@ def query_db(db, question_num):
                 "AND K.Revenue IS NOT NULL " \
                 "AND K.Budget IS NOT NULL " \
                 "AND K.Content_rating IS NOT NULL"
-    elif question_num == 6:
-        query = 'SELECT DISTINCT Title_type, Is_adult, R.Avg_rating, Start_year, Runtime ' \
-                'FROM IMDB I, RATINGS R ' \
-                'WHERE I.Tconst = R.Tconst ' \
-                'AND Start_year IS NOT NULL ' \
-                'AND Runtime IS NOT NULL ' \
-                'AND Avg_rating IS NOT NULL ' \
-                'AND Title_type IS NOT NULL ' \
-                'AND Is_adult IS NOT NULL'
-
 
     return db.perform_query(query)
 
@@ -129,49 +121,85 @@ def perform_1(db):
     # f, p = scipy.stats.f_oneway(genre_dict)
 
 
-# Perform analysis specific to question 2: Linear Regression Num Votes and Rating
+# Perform analysis specific to question 2: Linear Regression of Title type vs Runtime, Rating, Year, and Is_adult
 def perform_2(db):
-    # 754224 rows
-    result = query_db(db, 2)
-    # Convert to numpy array
-    temp_vector = np.fromiter(result.fetchall(), 'f,i4')
-    diagnostic_plots(temp_vector)
-    # Split into two vectors
-    rating = temp_vector['f0']
-    num_votes = temp_vector['f1']
-    # Log Transform number of votes to linearize the relationship
-    log_num_votes = np.log(num_votes)
+    ''' This method analyzes how well Logistic Regression can predict a Title_type of a production.
+        The prediction is performed using 4 attributes: Is_adult, R.Avg_rating, Start_year, and Runtime.
+        The results of the predictions are recorded in three heat maps, plotted against combination of
+        the latter three attributes. These heatmaps show patterns in how logistic regressions was able
+        to classify the data in response to the attributes. '''
 
-    '''use_transform = True
+    result = query_db(db, 2).fetchall()
 
-    plt.style.use('seaborn')
-    plt.figure(figsize=(15.5, 9.5), dpi=100)
+    type = np.array([x[0] for x in result])
+    data = [x[1:] for x in result]
 
-    if use_transform:
-        slope, intercept, r, p, std_error = scipy.stats.linregress(log_num_votes, rating)
-        plt.scatter(log_num_votes, rating, label='Data')
-        plt.plot(log_num_votes, intercept + slope * log_num_votes, 'r', label="Fit, r={0}".format(r))
-    else:
-        slope, intercept, r, p, std_error = scipy.stats.linregress(num_votes, rating)
-        plt.scatter(num_votes, rating, label='Data')
-        plt.plot(num_votes, intercept + slope * num_votes, 'r', label="Fit, r={0}".format(r))
+    # create and train the logistic regression module
+    model = lm.LogisticRegression()
+    model.fit(data, type)
+    score = model.score(data, type)
+    # print("Model Score is: {}".format(score))
 
-    print(
-        "Slope: {0}\nIntercept: {1}\nr: {2}\np-value: {3}\nstd. error: {4}\n".format(slope, intercept, r, p, std_error))
-    plt.legend()
-    plt.ylabel('Avg Rating')
-    plt.title('Linear Regression for Rating vs. Number of Votes')
+    # predict the data on model
+    predicted_types = model.predict(data)
 
-    if use_transform:
-        plt.xlabel('Log - Number of Votes')
-        plt.savefig('Results\\2-Transformed.png')
-    else:
-        plt.xlabel('Number of Votes')
-        plt.savefig('Results\\2.png')
-    plt.show()'''
+    # create tables of each attribute
+    rating = [x[1] for x in data]
+    year = [x[2] for x in data]
+    runtime = [x[3] for x in data]
+    # create a table representing which classifications the model predicted correctly, used to create a heatmap
+    correct = [True if target == predicted else False for target, predicted in zip(type, predicted_types)]
+    df = pd.DataFrame({"Rating": rating, "Year": year, "Runtime": runtime, "Percent Correct": correct},)
 
 
-# Perform analysis specific to question 3: Num Seasons and Show Rating
+    # create the first plot, plotting each individual's Year against Rating
+    plt.figure(figsize=(14, 7))
+    plt.title('Heatmap of Correct Predictions Plotted over Rating vs. Year\nModel Score = {:.4}'.format(score))
+
+    # group the data by (y, x) axis, and the True/False values for the heatmap
+    res = df.groupby(['Year', 'Rating'])['Percent Correct'].mean().unstack()
+    # manually set the x-ticks for Ratings axis
+    xticks = np.arange(10 + 1)
+    # plot the heatmap
+    ax = seaborn.heatmap(res, linewidth=0, xticklabels=xticks, cbar_kws={'label': 'Percent of Classifications Correct'})
+    ax.set_xticks(xticks * ax.get_xlim()[1] / (10))
+    ax.invert_yaxis()
+    # label the colorbar
+    cbar = ax.collections[0].colorbar
+    cbar.set_ticks([0, .25, .50, .75, 1])
+    cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
+
+    plt.savefig('Results2-1.png')
+
+    # create the second plot, plotting each individual's Year against Runtime
+    plt.figure(figsize=(14, 7))
+    plt.title('Heatmap of Correct Predictions Plotted over Runtime vs. Year\nModel Score = {:.4}'.format(score))
+
+    res = df.groupby(['Year', 'Runtime'])['Percent Correct'].mean().unstack()
+    ax = seaborn.heatmap(res, linewidth=0, cbar_kws={'label': 'Percent of Classifications Correct'})
+    ax.invert_yaxis()
+    cbar = ax.collections[0].colorbar
+    cbar.set_ticks([0, .25, .50, .75, 1])
+    cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
+
+    plt.savefig('Results2-2.png')
+
+    # create the third plot, plotting each individual's Runtime against Rating
+    plt.figure(figsize=(14, 7))
+    plt.title('Heatmap of Correct Predictions Plotted over Rating vs. Runtime\nModel Score = {:.4}'.format(score))
+
+    res = df.groupby(['Runtime', 'Rating'])['Percent Correct'].mean().unstack()
+    xticks = np.arange(10 + 1)
+    ax = seaborn.heatmap(res, linewidth=0, xticklabels=xticks, cbar_kws={'label': 'Percent of Classifications Correct'})
+    ax.set_xticks(xticks * ax.get_xlim()[1] / (10))
+    ax.invert_yaxis()
+    cbar = ax.collections[0].colorbar
+    cbar.set_ticks([0, .25, .50, .75, 1])
+    cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
+
+    plt.savefig('Results2-3.png')
+
+# Perform analysis specific to question 3: Linear Regression on Num Seasons vs. Show Rating
 def perform_3(db):
     ''' The method analyzes the relationship between Number of Seasons and Show Rating using logistic regression.
         Logistic regression is used to create a line over the data points, which is then visualized through
@@ -192,7 +220,7 @@ def perform_3(db):
     # plot the data on the chart
     plt.scatter(rating, num_seasons, label='Data')
     # plot the line on the chart
-    plt.plot(rating, intercept + slope * rating, 'r', label="Line: y = {:.3}x + {:.3}\nr = {:.5}\np-value = {:.5}".format(slope, intercept, r, p))
+    plt.plot(rating, intercept + slope * rating, 'r', label="r = {:.5}\nLine: y = {:.3}x + {:.3}\np-value = {:.5}".format(r, slope, intercept, p))
 
     #print("Slope: {0}\nIntercept: {1}\nr: {2}\np-value: {3}\nstd. error: {4}\n".format(slope, intercept, r, p, std_error))
     plt.legend()
@@ -200,12 +228,31 @@ def perform_3(db):
     plt.ylabel('Number of Seasons')
     plt.xlabel('Show Rating')
 
-    plt.savefig('Results3.pdf')
+    plt.savefig('Results3.png')
     #plt.show()
 
 
 def determine_components(data, output, labels, f_regress = False):
-    ''' Determine the order that attributes are removed through SelectKBest methods'''
+    ''' Determine the order that attributes are removed through SelectKBest methods, used by perform_4'''
+
+    # if f_regression is being used
+    if f_regress:
+        # order of removal using f_regression (Univariate linear regression tests)
+        initial_values = {x: y for x, y in zip(labels, data[0])}
+        ordered_values = []
+
+        for i in reversed(range(len(data[0]))):
+            # select the k-best attributes for the data
+            new_data = SelectKBest(f_regression, k=i).fit_transform(data, output)
+            # for each remaining attribute
+            for key, value in initial_values.items():
+                # determine which attribute was not included in the new data, add it to the list
+                if value not in new_data[0]:
+                    ordered_values.insert(0, key)
+                    del initial_values[key]
+                    break
+        # print(ordered_values)
+        return ordered_values
 
     # order of removal using mutual_info_regression (Estimate mutual information for a continuous target variable)
     initial_values = {x: y for x, y in zip(labels, data[0])}
@@ -213,36 +260,18 @@ def determine_components(data, output, labels, f_regress = False):
 
     # for each possible number of remaining attributes
     for i in reversed(range(len(data[0]))):
-        # select the k-best attributes for the data
         new_data = SelectKBest(mutual_info_regression, k=i).fit_transform(data, output)
-        # for each remaining attribute
         for key, value in initial_values.items():
-            # determine which attribute was not included in the new data, add it to the list
             if value not in new_data[0]:
                 ordered_values.insert(0, key)
                 del initial_values[key]
                 break
     #print(ordered_values)
 
-    if f_regress:
-        # order of removal using f_regression (Univariate linear regression tests)
-        initial_values = {x: y for x, y in zip(labels, data[0])}
-        ordered_values = []
-
-        for i in reversed(range(len(data[0]))):
-            new_data = SelectKBest(f_regression, k=i).fit_transform(data, output)
-            for key, value in initial_values.items():
-                if value not in new_data[0]:
-                    ordered_values.insert(0, key)
-                    del initial_values[key]
-                    break
-        #print(ordered_values)
-        return ordered_values
-
     return ordered_values
 
 
-# Perform analysis specific to question 4: Predict Revenue
+# Perform analysis specific to question 4: Predict Revenue using a Neural Net and Feature Selection
 def perform_4(db):
     ''' This method analyzes how well a Neural Network can predict the the Revenue of a production using a varying
         number of attributes, which are selected through feature selection. A network is initialized and trained on
@@ -336,7 +365,13 @@ def perform_4(db):
     #trend['y'] = [(trend['y'][x] / 5) + 150000 for x in range(len(trend['y']))] + [150000]
     # average the testing error of the network trained on each set of components over all the tests run
     trend['y'] = [(trend['y'][x] / number_of_tests) for x in range(len(trend['y']))]
-    plt.bar(trend['x'], trend['y'], color='m')
+    rects = plt.bar(trend['x'], trend['y'], color='m')
+
+    # create labels on each bar displaying the value of the average error
+    labels = [int(trend['y'][i]) for i in range(len(rects))]
+    for rect, label in zip(rects, labels):
+        height = rect.get_height()
+        plt.text(rect.get_x() + rect.get_width() / 2, height + 5, label, ha='center', va='bottom')
 
     # label the x-axis with the ordered attributes
     ax = plt.subplot()
@@ -370,126 +405,6 @@ def perform_5(db):
     clf = lm.LinearRegression()
     clf.fit(data, revenue)
 
-def perform_6(db):
-    ''' This method analyzes how well Logistic Regression can predict a Title_type of a production.
-        The prediction is performed using 4 attributes: Is_adult, R.Avg_rating, Start_year, and Runtime.
-        The results of the predictions are recorded in three heat maps, plotted against combination of
-        the latter three attributes. These heatmaps show patterns in how logistic regressions was able
-        to classify the data in response to the attributes. '''
-
-    result = query_db(db, 6).fetchall()
-
-    type = np.array([x[0] for x in result])
-    data = [x[1:] for x in result]
-
-    # create and train the logistic regression module
-    model = lm.LogisticRegression()
-    model.fit(data, type)
-    # print("Model Score is: {}".format(model.score(df, type)))
-
-    # predict the data on model
-    predicted_types = model.predict(data)
-
-    # create tables of each attribute
-    rating = [x[1] for x in data]
-    year = [x[2] for x in data]
-    runtime = [x[3] for x in data]
-    # create a table representing which classifications the model predicted correctly, used to create a heatmap
-    correct = [True if target == predicted else False for target, predicted in zip(type, predicted_types)]
-    df = pd.DataFrame({"Rating": rating, "Year": year, "Runtime": runtime, "Percent Correct": correct})
-
-
-    # create the first plot, plotting each individual's Year against Rating
-    plt.figure(figsize=(14, 7))
-    plt.title('Heatmap of Correct Predictions Plotted over Rating vs. Year')
-
-    # group the data by (y, x) axis, and the True/False values for the heatmap
-    res = df.groupby(['Year', 'Rating'])['Percent Correct'].mean().unstack()
-    # manually set the x-ticks for Ratings axis
-    xticks = np.arange(10 + 1)
-    # plot the heatmap
-    ax = seaborn.heatmap(res, linewidth=0, xticklabels=xticks, cbar_kws={'label': 'Percent of Classifications Correct'})
-    ax.set_xticks(xticks * ax.get_xlim()[1] / (10))
-    ax.invert_yaxis()
-    # label the colorbar
-    cbar = ax.collections[0].colorbar
-    cbar.set_ticks([0, .25, .50, .75, 1])
-    cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
-
-    plt.savefig('Results6-1.png')
-
-    # create the second plot, plotting each individual's Year against Runtime
-    plt.figure(figsize=(14, 7))
-    plt.title('Heatmap of Correct Predictions Plotted over Runtime vs. Year')
-
-    res = df.groupby(['Year', 'Runtime'])['Percent Correct'].mean().unstack()
-    ax = seaborn.heatmap(res, linewidth=0, cbar_kws={'label': 'Percent of Classifications Correct'})
-    ax.invert_yaxis()
-    cbar = ax.collections[0].colorbar
-    cbar.set_ticks([0, .25, .50, .75, 1])
-    cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
-
-    plt.savefig('Results6-2.png')
-
-    # create the third plot, plotting each individual's Runtime against Rating
-    plt.figure(figsize=(14, 7))
-    plt.title('Heatmap of Correct Predictions Plotted over Rating vs. Runtime')
-
-    res = df.groupby(['Runtime', 'Rating'])['Percent Correct'].mean().unstack()
-    xticks = np.arange(10 + 1)
-    ax = seaborn.heatmap(res, linewidth=0, xticklabels=xticks, cbar_kws={'label': 'Percent of Classifications Correct'})
-    ax.set_xticks(xticks * ax.get_xlim()[1] / (10))
-    ax.invert_yaxis()
-    cbar = ax.collections[0].colorbar
-    cbar.set_ticks([0, .25, .50, .75, 1])
-    cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
-
-    plt.savefig('Results6-3.png')
-
-    return
-
-    encoded_colors = ['k' if target == predicted else 'r' for target, predicted in zip(type, predicted_types)]
-    #plt.plot(type, model.predict(data))
-    #plt.scatter()
-    plt.scatter([x[1] for x in data], [x[2] for x in data], [x[3]/4 for x in data], alpha=0.5, c=encoded_colors)
-    # plt.plot(data, model.predict(df), color='r')
-
-    plt.legend()
-    plt.ylabel('Year')
-    plt.xlabel('Rating')
-    plt.savefig('Results6.png')
-    plt.show()
-
-
-
-    return
-    #print(np.unique([x[0] for x in result]))
-
-    type = np.array([x[0] for x in result])
-    data = [x[1:] for x in result]
-
-    #df = pd.DataFrame(data)
-    model = lm.LogisticRegression()
-    model.fit(data, type)
-
-
-
-    #plt.scatter([x[0] for x in data], type)
-    #plt.plot(data, model.predict(df), color='r')
-
-    plt.figure(figsize=(14, 7))
-    #print('mean = {}'.format(stats.mean([int(x) for x in type])))
-    #Is_adult, R.Avg_rating, Start_year, Runtime
-    encoded_colors = ['k' if x==0 else 'c' for x in type]
-    plt.scatter([x[0] for x in data], [x[1] for x in data], s=[x[2]/2 for x in data] ,alpha=0.4, c=encoded_colors)
-    #plt.plot(data, model.predict(df), color='r')
-
-    plt.legend()
-    plt.ylabel('Rating')
-    plt.xlabel('Is Adult')
-    plt.savefig('Results6.png')
-    plt.show()
-
 
 def main():
     # Determine the path to the DB based on who is running this application
@@ -503,7 +418,7 @@ def main():
     # Create a database manager based on the path
     db = DB_Manager.DBManager(path)
 
-    perform_3(db)
+    perform_1(db)
 
     # Close the database connection cleanly
     db.close_connection()
