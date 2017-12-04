@@ -442,6 +442,7 @@ def perform_4(db):
 
 # Perform analysis specific to question 5: Predict Revenue with Multiple Linear Regression in R.
 def perform_5(db):
+    # Start a subprocess to call the R executable and start the script
     sub.Popen([r"C:\Program Files\R\R-3.4.1\bin\x64\Rscript.exe", r".\Application.R"])
 
 

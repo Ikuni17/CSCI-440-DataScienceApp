@@ -13,7 +13,10 @@ imdb <- dbConnect(RSQLite::SQLite(), 'C:\\IMDB\\D3 Python Script\\imdb.db')
 # Returns the query for a specific question
 db_query <- function(question) {
     if (question == 1) {
-        query <- ''
+        query <- 'SELECT DISTINCT K.Tconst, K.Revenue, G.Genre ' \
+                'FROM KAGGLE K, Genre G ' \
+                'WHERE K.Tconst = G.Tconst ' \
+                'AND K.Revenue IS NOT NULL'
     }else if (question == 2) {
         query <- ''
     }else if (question == 3) {
@@ -25,6 +28,13 @@ db_query <- function(question) {
     }
 
     return(query)
+}
+
+perform_analysis <- function(question){
+    query <- db_query(question)
+    results <- dbGetQuery(imdb, query)
+
+    print(summary(lm))
 }
 
 # Perform analysis specific to question 5, which is predicting revenue with multiple linear regression based on
