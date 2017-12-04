@@ -168,7 +168,7 @@ def perform_1(db):
     plt.ylabel("Mean Revenue (Millions USD)")
     plt.title("Mean Revenue per Genre")
     plt.text(2, 320, 'F={0}, p-value={1}'.format(f, p))
-    plt.savefig('Results\\1.png')
+    plt.savefig('Results\\1-AllGenres.png')
     #plt.show()
 
 

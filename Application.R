@@ -1,11 +1,17 @@
+# Sam Congdon and Bradley White
+# CSCI 440: Data Science Application
+# December 3, 2017
+
 require(DBI)
 require(psych)
 require(effects)
 require(car)
 options(device="png")
 
+# Create the database connection
 imdb <- dbConnect(RSQLite::SQLite(), 'C:\\IMDB\\D3 Python Script\\imdb.db')
 
+# Returns the query for a specific question
 db_query <- function(question) {
     if (question == 1) {
         query <- ''
@@ -22,18 +28,34 @@ db_query <- function(question) {
     return(query)
 }
 
+# Perform analysis specific to question 5, which is predicting revenue with multiple linear regression based on
+# Budget, Content rating, and average user rating
 perform_5 <- function(){
+    # Get the correct query and use it to get the results from the database
     query <- db_query(5)
     results <- dbGetQuery(imdb, query)
+    # Convert content rating to an indicator variable
     results$Content_rating <- as.factor(results$Content_rating)
+    # Build the linear model
     lm1 = lm(Revenue ~ Budget + Content_rating + Avg_rating, data = results)
+    # Print the summary for the linear model which contains estimated slope and y intercept, std. error, t stats,
+    # p values for each explanatory variable, multiple and adjusted R squared and F-stats
     print(summary(lm1))
+    # Create the four diagnostic plots in a 2x2 grid and save to file. The four plots are Residuals vs Fitted, Normal
+    # Q-Q Plot, Scale Location, and Residuals vs Leverage
+    png(filename="Results\\5-Diagnostics.png")
     par(mfrow = c(2, 2))
     plot(lm1)
-    #plot(allEffects(lm1))
+    # Create the pairs panel to look for multicollinearity and see initial r values for all variables
+    png(filename="Results\\5-PairsPanel.png")
     pairs.panels(results, ellipse = F, main = "Scatterplot matrix")
+    # Print the 95% confidence interval for all variables
     print(confint(lm1))
+    # Create some scatterplot
+    png(filename="Results\\5-Scatterplot-Budget.png")
     scatterplot(Revenue~Budget|Content_rating, xlab = "Budget", ylab = "Revenue in Millions", data = results, smooth=F, lwd=3, main="Plot of Budget vs Revenue grouped by Content Rating")
+    png(filename="Results\\5-Scatterplot-Rating.png")
+    scatterplot(Revenue~Avg_rating|Content_rating, xlab = "Average Rating", ylab = "Revenue in Millions", data = results, smooth=F, lwd=3, main="Plot of Average Rating vs Revenue grouped by Content Rating")
 }
 
 perform_5()
