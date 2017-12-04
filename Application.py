@@ -173,48 +173,36 @@ def perform_2(db):
 
 # Perform analysis specific to question 3: Num Seasons and Show Rating
 def perform_3(db):
-    # 291663 rows
+    ''' The method analyzes the relationship between Number of Seasons and Show Rating using logistic regression.
+        Logistic regression is used to create a line over the data points, which is then visualized through
+        plotting the line over the data points, saving the figure to Results3.png '''
+
     result = query_db(db, 3)
     # Convert to numpy array
     temp_vector = np.fromiter(result.fetchall(), 'i4,f')
-    # Split into two vectors
 
+    # Split into two vectors
     num_seasons = temp_vector['f0']
     rating = temp_vector['f1']
 
+    plt.figure(figsize=(14, 7))
 
-    df = pd.DataFrame(rating)
-    model = lm.LogisticRegression()
-    model.fit(df, num_seasons)
-
-    plt.scatter(rating, num_seasons)
-    plt.plot(rating, model.predict(df), color='r')
-
-    plt.ylabel('Number of Seasons')
-    plt.xlabel('Show Rating')
-    plt.savefig('Results3.png')
-    plt.show()
-
-
-    # check the accuracy on the training set
-    print("Model Score is: {}".format(model.score(df, num_seasons)))
-
-    '''
-    print(rating)
+    # retrieve the attributes of line fit with linear regression
     slope, intercept, r, p, std_error = scipy.stats.linregress(rating, num_seasons)
+    # plot the data on the chart
     plt.scatter(rating, num_seasons, label='Data')
-    plt.plot(rating, intercept + slope * rating, 'r', label="Fit, r={0}".format(r))
+    # plot the line on the chart
+    plt.plot(rating, intercept + slope * rating, 'r', label="Line: y = {:.3}x + {:.3}\nr = {:.5}\np-value = {:.5}".format(slope, intercept, r, p))
 
-    print(
-        "Slope: {0}\nIntercept: {1}\nr: {2}\np-value: {3}\nstd. error: {4}\n".format(slope, intercept, r, p, std_error))
+    #print("Slope: {0}\nIntercept: {1}\nr: {2}\np-value: {3}\nstd. error: {4}\n".format(slope, intercept, r, p, std_error))
     plt.legend()
-    plt.ylabel('Number of Seasons')
     plt.title('Linear Regression for Number of Seasons vs. Show Rating')
-
+    plt.ylabel('Number of Seasons')
     plt.xlabel('Show Rating')
+
     plt.savefig('Results3.pdf')
-    plt.show()
-    '''
+    #plt.show()
+
 
 def determine_components(data, output, labels, f_regress = False):
     ''' Determine the order that attributes are removed through SelectKBest methods'''
@@ -255,20 +243,22 @@ def determine_components(data, output, labels, f_regress = False):
 
 
 # Perform analysis specific to question 4: Predict Revenue
-# Run PCA then use neural net to predict revenue
 def perform_4(db):
     ''' This method analyzes how well a Neural Network can predict the the Revenue of a production using a varying
-        number of attributes, which are selected through PCA. A network is initialized and trained on the selected
-        components, then tested, which is quantified with mean squared error. Each network is tested using k-fold
-        cross validation, with the avg testing error recorded over the k tests. This testing error is then averaged
-        through the number of tests run, then plotted and saved to the file Results4.1.png.
+        number of attributes, which are selected through feature selection. A network is initialized and trained on
+        the selected components, then tested, which is quantified with mean squared error. Each network is tested
+        using k-fold cross validation, with the avg testing error recorded over the k tests. This testing error is
+        then averaged through the number of tests run, then plotted and saved to the file Results4.png.
 
         Note: extra plt commands were used to tune the network. They are included to show how the network was tuned,
         however they are not being utilized in the final application. '''
 
-    #retrieve the data relevant to this question from the DataBase
+    # retrieve the data relevant to this question from the DataBase
     result = query_db(db, 4).fetchall()
     labels = ['Revenue', 'Start_year', 'Runtime', 'Face_number', 'FB_likes', 'Rank', 'Meta_score']
+
+    # f_regression is an alternate feature selection method, however tuning revealed mutual_info_regression to
+    # perform better on the selected data. Thus, f_regression is not used in the final application
     f_regress = False
 
     # split into predicted value revenue and input variables data
@@ -359,8 +349,8 @@ def perform_4(db):
     if f_regress:
         plt.savefig('Results4 with f_regression.png')
     else:
-        plt.savefig('Results4 with mutual_info_regression.png')
-    plt.show()
+        plt.savefig('Results4.png')
+    #plt.show()
 
 # Perform analysis specific to question 5: Predict Revenue
 # do multiple linear regression to predict revenue using
@@ -411,6 +401,7 @@ def perform_6(db):
 
     # create the first plot, plotting each individual's Year against Rating
     plt.figure(figsize=(14, 7))
+    plt.title('Heatmap of Correct Predictions Plotted over Rating vs. Year')
 
     # group the data by (y, x) axis, and the True/False values for the heatmap
     res = df.groupby(['Year', 'Rating'])['Percent Correct'].mean().unstack()
@@ -429,6 +420,7 @@ def perform_6(db):
 
     # create the second plot, plotting each individual's Year against Runtime
     plt.figure(figsize=(14, 7))
+    plt.title('Heatmap of Correct Predictions Plotted over Runtime vs. Year')
 
     res = df.groupby(['Year', 'Runtime'])['Percent Correct'].mean().unstack()
     ax = seaborn.heatmap(res, linewidth=0, cbar_kws={'label': 'Percent of Classifications Correct'})
@@ -441,6 +433,7 @@ def perform_6(db):
 
     # create the third plot, plotting each individual's Runtime against Rating
     plt.figure(figsize=(14, 7))
+    plt.title('Heatmap of Correct Predictions Plotted over Rating vs. Runtime')
 
     res = df.groupby(['Runtime', 'Rating'])['Percent Correct'].mean().unstack()
     xticks = np.arange(10 + 1)
