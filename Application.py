@@ -168,7 +168,7 @@ def perform_1(db):
     plt.title("Mean Revenue per Genre")
     plt.text(2, 320, 'F={0}, p-value={1}'.format(f, p))
     plt.savefig('Results\\1-AllGenres.png')
-    # plt.show()k
+    # plt.show()
 
 
 # Perform analysis specific to question 2: Linear Regression of Title type vs Runtime, Rating, Year, and Is_adult
