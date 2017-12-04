@@ -64,6 +64,5 @@ perform_5 <- function(){
     scatterplot(Revenue~Avg_rating|Content_rating, xlab = "Average Rating", ylab = "Revenue in Millions", data = results, smooth=F, lwd=3, main="Plot of Average Rating vs Revenue grouped by Content Rating")
 }
 
-perform_3()
 perform_5()
 dbDisconnect(imdb)

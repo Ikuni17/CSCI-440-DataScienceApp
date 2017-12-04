@@ -9,19 +9,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import platform
-import seaborn
 import scipy.stats
-import sklearn.linear_model as lm
-import statistics as stats
-import statsmodels
-import statsmodels.api as sm
-import statsmodels.formula.api as smf
-from sklearn.neural_network import MLPRegressor
-from sklearn.model_selection import KFold
+import seaborn
+from sklearn.dummy import DummyClassifier
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import f_regression
 from sklearn.feature_selection import mutual_info_regression
-from sklearn.dummy import DummyClassifier
+import sklearn.linear_model as lm
+from sklearn.model_selection import KFold
+from sklearn.neural_network import MLPRegressor
+import statistics as stats
 import subprocess as sub
 
 
