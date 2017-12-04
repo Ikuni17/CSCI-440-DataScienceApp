@@ -21,6 +21,7 @@ from sklearn.model_selection import KFold
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import f_regression
 from sklearn.feature_selection import mutual_info_regression
+from sklearn.dummy import DummyClassifier
 import subprocess as sub
 
 
@@ -184,6 +185,13 @@ def perform_2(db):
     type = np.array([x[0] for x in result])
     data = [x[1:] for x in result]
 
+    # determine the accuracy that could be achieved if the most common class was predicted every time
+    model = DummyClassifier(strategy='most_frequent')
+    model.fit(data, type)
+    predicted = model.predict(data)
+    classes = [1 if target == predicted else 0 for target, predicted in zip(type, predicted)]
+    majority_accuracy = stats.mean(classes)
+
     # create and train the logistic regression module
     model = lm.LogisticRegression()
     model.fit(data, type)
@@ -201,10 +209,9 @@ def perform_2(db):
     correct = [True if target == predicted else False for target, predicted in zip(type, predicted_types)]
     df = pd.DataFrame({"Rating": rating, "Year": year, "Runtime": runtime, "Percent Correct": correct}, )
 
-
     # create the first plot, plotting each individual's Year against Rating
     plt.figure(figsize=(14, 7))
-    plt.title('Heatmap of Correct Predictions Plotted over Rating vs. Year\nModel Score = {:.4}'.format(score))
+    plt.title('Heatmap of Correct Predictions Plotted over Rating vs. Year\nModel Score = {:.4}, Majority Classifier Score = {:.4}'.format(score, majority_accuracy))
 
     # group the data by (y, x) axis, and the True/False values for the heatmap
     res = df.groupby(['Year', 'Rating'])['Percent Correct'].mean().unstack()
@@ -219,11 +226,11 @@ def perform_2(db):
     cbar.set_ticks([0, .25, .50, .75, 1])
     cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
 
-    plt.savefig('Results/Results2-1.png')
+    plt.savefig('Results/Results2-1.pdf')
 
     # create the second plot, plotting each individual's Year against Runtime
     plt.figure(figsize=(14, 7))
-    plt.title('Heatmap of Correct Predictions Plotted over Runtime vs. Year\nModel Score = {:.4}'.format(score))
+    plt.title('Heatmap of Correct Predictions Plotted over Runtime vs. Year\nModel Score = {:.4}, Majority Classifier Score = {:.4}'.format(score, majority_accuracy))
 
     res = df.groupby(['Year', 'Runtime'])['Percent Correct'].mean().unstack()
     ax = seaborn.heatmap(res, linewidth=0, cbar_kws={'label': 'Percent of Classifications Correct'})
@@ -232,11 +239,11 @@ def perform_2(db):
     cbar.set_ticks([0, .25, .50, .75, 1])
     cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
 
-    plt.savefig('Results/Results2-2.png')
+    plt.savefig('Results/Results2-2.pdf')
 
     # create the third plot, plotting each individual's Runtime against Rating
     plt.figure(figsize=(14, 7))
-    plt.title('Heatmap of Correct Predictions Plotted over Rating vs. Runtime\nModel Score = {:.4}'.format(score))
+    plt.title('Heatmap of Correct Predictions Plotted over Rating vs. Runtime\nModel Score = {:.4}, Majority Classifier Score = {:.4}'.format(score, majority_accuracy))
 
     res = df.groupby(['Runtime', 'Rating'])['Percent Correct'].mean().unstack()
     xticks = np.arange(10 + 1)
@@ -247,7 +254,7 @@ def perform_2(db):
     cbar.set_ticks([0, .25, .50, .75, 1])
     cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
 
-    plt.savefig('Results/Results2-3.png')
+    plt.savefig('Results/Results2-3.pdf')
 
 
 # Perform analysis specific to question 3: Linear Regression on Num Seasons vs. Show Rating
@@ -280,7 +287,7 @@ def perform_3(db):
     plt.ylabel('Number of Seasons')
     plt.xlabel('Show Rating')
 
-    plt.savefig('Results/Results3.png')
+    plt.savefig('Results/Results3.pdf')
     #plt.show()
 
 
@@ -436,9 +443,9 @@ def perform_4(db):
     plt.xlabel('Components Included in Test ({})'.format(', '.join(ordered_labels)))
     plt.ylabel('Average Mean Square Error of Networks')
     if f_regress:
-        plt.savefig('Results/Results4 with f_regression.png')
+        plt.savefig('Results/Results4 with f_regression.pdf')
     else:
-        plt.savefig('Results/Results4.png')
+        plt.savefig('Results/Results4.pdf')
     # plt.show()
 
 
