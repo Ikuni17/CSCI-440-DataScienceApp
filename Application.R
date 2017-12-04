@@ -4,9 +4,8 @@
 
 require(DBI)
 require(psych)
-require(effects)
 require(car)
-options(device="png")
+options(device="pdf")
 
 # Create the database connection
 imdb <- dbConnect(RSQLite::SQLite(), 'C:\\IMDB\\D3 Python Script\\imdb.db')
@@ -43,18 +42,18 @@ perform_5 <- function(){
     print(summary(lm1))
     # Create the four diagnostic plots in a 2x2 grid and save to file. The four plots are Residuals vs Fitted, Normal
     # Q-Q Plot, Scale Location, and Residuals vs Leverage
-    png(filename="Results\\5-Diagnostics.png")
+    pdf("Results\\5-Diagnostics.pdf")
     par(mfrow = c(2, 2))
     plot(lm1)
     # Create the pairs panel to look for multicollinearity and see initial r values for all variables
-    png(filename="Results\\5-PairsPanel.png")
+    pdf("Results\\5-PairsPanel.pdf")
     pairs.panels(results, ellipse = F, main = "Scatterplot matrix")
     # Print the 95% confidence interval for all variables
     print(confint(lm1))
     # Create some scatterplot
-    png(filename="Results\\5-Scatterplot-Budget.png")
+    pdf("Results\\5-Scatterplot-Budget.pdf")
     scatterplot(Revenue~Budget|Content_rating, xlab = "Budget", ylab = "Revenue in Millions", data = results, smooth=F, lwd=3, main="Plot of Budget vs Revenue grouped by Content Rating")
-    png(filename="Results\\5-Scatterplot-Rating.png")
+    pdf("Results\\5-Scatterplot-Rating.pdf")
     scatterplot(Revenue~Avg_rating|Content_rating, xlab = "Average Rating", ylab = "Revenue in Millions", data = results, smooth=F, lwd=3, main="Plot of Average Rating vs Revenue grouped by Content Rating")
 }
 
