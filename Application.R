@@ -38,9 +38,10 @@ perform_3<- function(){
 # Budget, Content rating, and average user rating
 perform_5 <- function(){
     # Get the correct query and use it to get the results from the database
+    print("Retrieving question 5 results from database")
     query <- db_query(5)
     results <- dbGetQuery(imdb, query)
-    print("Retrieved question 5 results from database")
+
     # Convert content rating to an indicator variable
     results$Content_rating <- as.factor(results$Content_rating)
     print("Finished post-processing, building Multiple Linear Regression model")

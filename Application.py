@@ -84,9 +84,9 @@ def query_db(db, question_num):
 # Perform analysis specific to question 1: Mean Revenue by Genre with a One-Way ANOVA model
 def perform_1(db):
     # Query the DB to get the relevant rows
+    print("Retrieving question 1 results from database")
     result = query_db(db, 1).fetchall()
 
-    print("Retrieved question 1 results from database")
     # Denormalize the genres into a dictionary with the structure: {Tconst: [[Revenue], [Genres]]}
     result_dict = {}
     for row in result:
@@ -181,8 +181,8 @@ def perform_2(db):
         the latter three attributes. These heatmaps show patterns in how logistic regressions was able
         to classify the data in response to the attributes. '''
 
+    print("Retrieving question 2 results from database")
     result = query_db(db, 2).fetchall()
-    print("Retrieved question 2 results from database")
 
     type = np.array([x[0] for x in result])
     data = [x[1:] for x in result]
@@ -232,7 +232,7 @@ def perform_2(db):
     cbar.set_ticks([0, .25, .50, .75, 1])
     cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
 
-    plt.savefig('Results/Results2-1.pdf')
+    plt.savefig('Results/Results2-1.png')
 
     # create the second plot, plotting each individual's Year against Runtime
     plt.figure(figsize=(14, 7))
@@ -247,7 +247,7 @@ def perform_2(db):
     cbar.set_ticks([0, .25, .50, .75, 1])
     cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
 
-    plt.savefig('Results/Results2-2.pdf')
+    plt.savefig('Results/Results2-2.png')
 
     # create the third plot, plotting each individual's Runtime against Rating
     plt.figure(figsize=(14, 7))
@@ -264,7 +264,7 @@ def perform_2(db):
     cbar.set_ticks([0, .25, .50, .75, 1])
     cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
 
-    plt.savefig('Results/Results2-3.pdf')
+    plt.savefig('Results/Results2-3.png')
 
 
 # Perform analysis specific to question 3: Linear Regression on Num Seasons vs. Show Rating
@@ -273,8 +273,8 @@ def perform_3(db):
         Logistic regression is used to create a line over the data points, which is then visualized through
         plotting the line over the data points, saving the figure to Results3.png '''
 
+    print("Retrieving question 3 results from database")
     result = query_db(db, 3)
-    print("Retrieved question 3 results from database")
 
     # Convert to numpy array
     temp_vector = np.fromiter(result.fetchall(), 'i4,f')
@@ -314,7 +314,7 @@ def determine_components(data, output, labels, f_regress=False):
         initial_values = {x: y for x, y in zip(labels, data[0])}
         ordered_values = []
 
-        for i in reversed(range(len(data[0]))):
+        for i in reversed(range(1, len(data[0]))):
             # select the k-best attributes for the data
             new_data = SelectKBest(f_regression, k=i).fit_transform(data, output)
             # for each remaining attribute
@@ -332,7 +332,7 @@ def determine_components(data, output, labels, f_regress=False):
     ordered_values = []
 
     # for each possible number of remaining attributes
-    for i in reversed(range(len(data[0]))):
+    for i in reversed(range(1, len(data[0]))):
         new_data = SelectKBest(mutual_info_regression, k=i).fit_transform(data, output)
         for key, value in initial_values.items():
             if value not in new_data[0]:
@@ -356,8 +356,9 @@ def perform_4(db):
         however they are not being utilized in the final application. '''
 
     # retrieve the data relevant to this question from the DataBase
+    print("Retrieving question 4 results from database")
     result = query_db(db, 4).fetchall()
-    print("Retrieved question 4 results from database")
+
     labels = ['Revenue', 'Start_year', 'Runtime', 'Face_number', 'FB_likes', 'Rank', 'Meta_score']
 
     # f_regression is an alternate feature selection method, however tuning revealed mutual_info_regression to
@@ -377,7 +378,7 @@ def perform_4(db):
     axes = plt.gca()
     # axes.set_xlim([0, 7])
     # axes.set_ylim([0, 250000])
-    number_of_tests = 100
+    number_of_tests = 10
     trend = {'x': [1, 2, 3, 4, 5, 6], 'y': [0, 0, 0, 0, 0, 0]}
 
     # colors = {0:'k', 1:'b', 2:'g', 3:'r', 4:'c', 5:'y', 6:'m'}
@@ -485,7 +486,11 @@ def main():
     # Create a database manager based on the path
     db = DB_Manager.DBManager(path)
 
-    perform_5(db)
+    #perform_1(db)
+    perform_2(db)
+    #perform_3(db)
+    #perform_4(db)
+    #perform_5(db)
 
     # Close the database connection cleanly
     db.close_connection()
