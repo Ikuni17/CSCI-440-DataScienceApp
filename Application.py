@@ -232,7 +232,7 @@ def perform_2(db):
     cbar.set_ticks([0, .25, .50, .75, 1])
     cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
 
-    plt.savefig('Results/Results2-1.png')
+    plt.savefig('Results/2-YearVSRating.pdf')
 
     # create the second plot, plotting each individual's Year against Runtime
     plt.figure(figsize=(14, 7))
@@ -247,7 +247,7 @@ def perform_2(db):
     cbar.set_ticks([0, .25, .50, .75, 1])
     cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
 
-    plt.savefig('Results/Results2-2.png')
+    plt.savefig('Results/2-YearVSRuntime.pdf')
 
     # create the third plot, plotting each individual's Runtime against Rating
     plt.figure(figsize=(14, 7))
@@ -264,7 +264,7 @@ def perform_2(db):
     cbar.set_ticks([0, .25, .50, .75, 1])
     cbar.set_ticklabels(['0%', '25%', '50%', '75%', '100%'])
 
-    plt.savefig('Results/Results2-3.png')
+    plt.savefig('Results/2-RuntimeVSRating.pdf')
 
 
 # Perform analysis specific to question 3: Linear Regression on Num Seasons vs. Show Rating
@@ -301,7 +301,7 @@ def perform_3(db):
     plt.ylabel('Number of Seasons')
     plt.xlabel('Show Rating')
 
-    plt.savefig('Results/Results3.pdf')
+    plt.savefig('Results/3-Scatterplot.pdf')
     # plt.show()
 
 
@@ -460,9 +460,9 @@ def perform_4(db):
     plt.xlabel('Components Included in Test ({})'.format(', '.join(ordered_labels)))
     plt.ylabel('Average Mean Square Error of Networks')
     if f_regress:
-        plt.savefig('Results/Results4 with f_regression.pdf')
+        plt.savefig('Results/4-BarFRegression.pdf')
     else:
-        plt.savefig('Results/Results4.pdf')
+        plt.savefig('Results/4-Bar.pdf')
     # plt.show()
 
 
@@ -486,11 +486,11 @@ def main():
     # Create a database manager based on the path
     db = DB_Manager.DBManager(path)
 
-    #perform_1(db)
+    perform_1(db)
     perform_2(db)
-    #perform_3(db)
-    #perform_4(db)
-    #perform_5(db)
+    perform_3(db)
+    perform_4(db)
+    perform_5(db)
 
     # Close the database connection cleanly
     db.close_connection()
