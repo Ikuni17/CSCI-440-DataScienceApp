@@ -324,6 +324,7 @@ def determine_components(data, output, labels, f_regress=False):
                     ordered_values.insert(0, key)
                     del initial_values[key]
                     break
+        ordered_values.insert(0, [key for key in initial_values.keys()][0])
         # print(ordered_values)
         return ordered_values
 
@@ -339,8 +340,8 @@ def determine_components(data, output, labels, f_regress=False):
                 ordered_values.insert(0, key)
                 del initial_values[key]
                 break
+    ordered_values.insert(0, [key for key in initial_values.keys()][0])
     # print(ordered_values)
-
     return ordered_values
 
 
@@ -378,7 +379,7 @@ def perform_4(db):
     axes = plt.gca()
     # axes.set_xlim([0, 7])
     # axes.set_ylim([0, 250000])
-    number_of_tests = 10
+    number_of_tests = 100
     trend = {'x': [1, 2, 3, 4, 5, 6], 'y': [0, 0, 0, 0, 0, 0]}
 
     # colors = {0:'k', 1:'b', 2:'g', 3:'r', 4:'c', 5:'y', 6:'m'}
@@ -486,11 +487,11 @@ def main():
     # Create a database manager based on the path
     db = DB_Manager.DBManager(path)
 
-    perform_1(db)
-    perform_2(db)
-    perform_3(db)
+    #perform_1(db)
+    #perform_2(db)
+    #perform_3(db)
     perform_4(db)
-    perform_5(db)
+    #perform_5(db)
 
     # Close the database connection cleanly
     db.close_connection()
